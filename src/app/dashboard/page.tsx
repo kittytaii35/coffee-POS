@@ -1,0 +1,482 @@
+'use client'
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+  Calendar, Clock, Users, TrendingUp, Coffee,
+  ChevronLeft, ChevronRight, Zap, AlertTriangle,
+  CheckCircle, Info, BarChart2, Award, Target, RefreshCw
+} from 'lucide-react'
+import { useSettings } from '@/context/SettingsContext'
+import { analyzeOrders, AnalyticsResult } from '@/lib/analytics'
+import type { Order } from '@/lib/analytics'
+import ManagerAttendancePro from './components/ManagerAttendancePro'
+import UnifiedReports from './components/UnifiedReports'
+import CashControl from './components/CashControl'
+import GlobalSettingsManager from './components/GlobalSettingsManager'
+import ProductManager from './components/ProductManager'
+
+// ─── Mock fallback with richer data ──────────────────────────
+const mockOrders: Order[] = (() => {
+  const now = new Date()
+  const items = [
+    { name: 'Bear Brand Thai Tea', price: 50, quantity: 2 },
+    { name: 'Matcha Latte', price: 55, quantity: 1 },
+    { name: 'Mango Smoothie', price: 40, quantity: 3 },
+    { name: 'Avocado Honey', price: 55, quantity: 1 },
+    { name: 'Oreo Cocoa', price: 50, quantity: 2 },
+    { name: 'Strawberry Soda', price: 35, quantity: 1 },
+    { name: 'Blueberry', price: 60, quantity: 1 },
+    { name: 'Cocoa Caramel', price: 50, quantity: 2 },
+    { name: 'Bear Brand Pink Milk', price: 50, quantity: 1 },
+    { name: 'Lemon', price: 40, quantity: 1 },
+  ]
+  const hours = [8, 9, 9, 10, 10, 10, 11, 13, 15, 17, 18, 20]
+  return hours.map((h, i) => {
+    const d = new Date(now)
+    d.setHours(h, Math.floor(Math.random() * 59), 0, 0)
+    const item = items[i % items.length]
+    return {
+      id: `mock-${i}`,
+      customer_name: `Customer ${i + 1}`,
+      line_user_id: i % 3 === 0 ? `line-${i}` : undefined,
+      items: [{ ...item }],
+      total: item.price * item.quantity,
+      status: i % 5 === 0 ? 'pending' : 'done',
+      payment_type: i % 3 === 0 ? 'cash' : i % 3 === 1 ? 'transfer' : 'promptpay',
+      paid: i % 5 !== 0,
+      created_at: d.toISOString(),
+    }
+  })
+})()
+
+// ─── Interface ────────────────────────────────────────────────
+interface AttendanceRecord {
+  id: string
+  employee_id: string
+  check_in: string
+  check_out?: string
+  work_hours?: number
+  status: 'working' | 'done'
+  latitude?: number
+  longitude?: number
+  image_url?: string
+  employees?: { id: string; name: string; role: string }
+}
+interface EmployeeSummary {
+  name: string; role: string; totalHours: number; sessions: number
+}
+type Period = 'daily' | 'weekly' | 'monthly'
+type Tab = 'overview' | 'reports' | 'cash' | 'attendance' | 'settings' | 'products'
+
+// ─── Palette helper ───────────────────────────────────────────
+const insightColors = {
+  success: { bg: '#f0fdf4', border: '#86efac', icon: '#16a34a', text: '#15803d' },
+  warning: { bg: '#fffbeb', border: '#fcd34d', icon: '#d97706', text: '#92400e' },
+  danger:  { bg: '#fef2f2', border: '#fca5a5', icon: '#dc2626', text: '#991b1b' },
+  info:    { bg: '#eff6ff', border: '#93c5fd', icon: '#2563eb', text: '#1e40af' },
+}
+
+// ─── Component ────────────────────────────────────────────────
+export default function DashboardPage() {
+  const [period, setPeriod] = useState<Period>('daily')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [records, setRecords] = useState<AttendanceRecord[]>([])
+  const [summary, setSummary] = useState<Record<string, EmployeeSummary>>({})
+  const [orders, setOrders] = useState<Order[]>([])
+  const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<Tab>('overview')
+  const [lastRefresh, setLastRefresh] = useState(new Date())
+  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const { settings, loading: settingsLoading } = useSettings()
+  const currency = settings.pos.currency
+  const shopName = settings.receipt.header
+  const shopSub = `Queen Coffee · AI Analytics`
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [attRes, ordRes] = await Promise.all([
+        fetch(`/api/attendance?period=${period}&date=${date}`),
+        fetch(`/api/orders?date=${date}`),
+      ])
+      const [attData, ordData] = await Promise.all([attRes.json(), ordRes.json()])
+      if (attData.records) setRecords(attData.records)
+      if (attData.summary) setSummary(attData.summary)
+      const fetchedOrders: Order[] = ordData.orders || mockOrders
+      setOrders(fetchedOrders)
+      setAnalytics(analyzeOrders(fetchedOrders))
+      setLastRefresh(new Date())
+    } catch {
+      setOrders(mockOrders)
+      setAnalytics(analyzeOrders(mockOrders))
+    }
+    setLoading(false)
+  }, [period, date])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  // Auto-refresh every 60s
+  useEffect(() => {
+    refreshTimer.current = setInterval(fetchData, 60000)
+    return () => { if (refreshTimer.current) clearInterval(refreshTimer.current) }
+  }, [fetchData])
+
+  const changeDate = (delta: number) => {
+    const d = new Date(date); d.setDate(d.getDate() + delta)
+    setDate(d.toISOString().split('T')[0])
+  }
+
+  const totalWorkHours = Object.values(summary).reduce((s, e) => s + e.totalHours, 0)
+  const activeNow = records.filter(r => r.status === 'working').length
+  const a = analytics
+
+  // ─── Bar chart helper ──────────────────────────────────────
+  const maxHourlyOrders = Math.max(...(a?.hourly.map(h => h.orders) ?? [1]), 1)
+
+  // ─── Export CSV ───────────────────────────────────────────
+  const exportToCSV = () => {
+    if (records.length === 0) return
+    const headers = ['Employee', 'Role', 'Check-in', 'Check-out', 'Work Hours', 'Status', 'Location', 'Image']
+    const rows = records.map(r => [
+      r.employees?.name || 'Unknown',
+      r.employees?.role || 'Unknown',
+      new Date(r.check_in).toLocaleString('th-TH'),
+      r.check_out ? new Date(r.check_out).toLocaleString('th-TH') : 'Still Working',
+      r.work_hours || 0,
+      r.status,
+      r.latitude && r.longitude ? `${r.latitude},${r.longitude}` : 'N/A',
+      r.image_url ? 'Yes' : 'No'
+    ])
+
+    const csvContent =
+      'data:text/csv;charset=utf-8,\uFEFF' +
+      [headers.join(','), ...rows.map(e => e.map(cell => `"${cell}"`).join(','))].join('\n')
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `attendance_${period}_${date.split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // ─── Render ───────────────────────────────────────────────
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>
+      {/* ── Header ── */}
+      <div style={{
+        background: 'linear-gradient(135deg, var(--coffee-dark) 0%, var(--coffee-brown) 100%)',
+        padding: '20px 24px 0',
+      }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', paddingBottom: '16px' }}>
+            {/* Left – title */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '44px', height: '44px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, var(--gold), var(--gold-light))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Coffee size={24} color="var(--coffee-dark)" />
+              </div>
+              <div>
+                <h1 style={{ color: 'white', fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px' }}>Manager Dashboard</h1>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>{shopName} · AI Analytics</p>
+              </div>
+            </div>
+
+            {/* Right – controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {/* Period */}
+              <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '4px' }}>
+                {(['daily', 'weekly', 'monthly'] as const).map(p => (
+                  <button key={p} onClick={() => setPeriod(p)} style={{
+                    padding: '6px 14px', borderRadius: '9px', border: 'none',
+                    background: period === p ? 'var(--gold)' : 'transparent',
+                    color: period === p ? 'var(--coffee-dark)' : 'rgba(245,230,211,0.7)',
+                    cursor: 'pointer', fontWeight: period === p ? '700' : '400',
+                    fontSize: '13px', transition: 'all 0.2s', textTransform: 'capitalize',
+                  }}>{p}</button>
+                ))}
+              </div>
+
+              {/* Date nav */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button onClick={() => changeDate(-1)} style={{
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
+                  cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}><ChevronLeft size={16} /></button>
+                <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{
+                  padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', outline: 'none',
+                }} />
+                <button onClick={() => changeDate(1)} style={{
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
+                  cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}><ChevronRight size={16} /></button>
+              </div>
+
+              {/* Refresh */}
+              <button onClick={fetchData} title="Refresh" style={{
+                width: '32px', height: '32px', borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
+                cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}><RefreshCw size={14} /></button>
+            </div>
+          </div>
+
+          {/* ── Tabs ── */}
+          <div style={{ display: 'flex', gap: '2px' }}>
+            {([
+              { id: 'overview', label: '📊 Overview' },
+              { id: 'reports', label: '📈 Reports' },
+              { id: 'products', label: '📦 Products' },
+              { id: 'cash', label: '💵 Cash Control' },
+              { id: 'attendance', label: '📋 Attendance' },
+              { id: 'settings', label: '⚙️ Settings' },
+            ] as const).map(t => (
+              <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+                padding: '10px 20px', border: 'none', cursor: 'pointer',
+                background: activeTab === t.id ? 'white' : 'transparent',
+                color: activeTab === t.id ? 'var(--coffee-dark)' : 'rgba(255,255,255,0.65)',
+                fontWeight: activeTab === t.id ? '700' : '500',
+                fontSize: '14px', borderRadius: '10px 10px 0 0',
+                transition: 'all 0.2s',
+              }}>{t.label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Content ── */}
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '60px', color: 'var(--coffee-light)' }}>
+            <RefreshCw size={36} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px' }} />
+            <p>Loading analytics...</p>
+          </div>
+        )}
+
+        {!loading && activeTab === 'overview' && a && (
+          <div>
+            {/* KPI Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+              <KPICard icon={<TrendingUp size={22} />} label="Total Revenue" value={`${currency}${a.totalRevenue.toLocaleString()}`} sub={`Paid ${currency}${a.paidRevenue.toLocaleString()}`} accent="#d4af37" />
+              <KPICard icon={<Coffee size={22} />} label="Orders Total" value={a.totalOrders.toString()} sub={`Avg ${currency}${a.avgOrderValue}/order`} accent="#60a5fa" />
+              <KPICard icon={<Users size={22} />} label="Staff Active" value={activeNow.toString()} sub={`${Object.keys(summary).length} in period`} accent="#34d399" />
+              <KPICard icon={<Clock size={22} />} label="Work Hours" value={totalWorkHours.toFixed(1)} sub="This period" accent="#f472b6" />
+            </div>
+
+            {/* Quick Insights row */}
+            {a.insights.length > 0 && (
+              <div style={{ marginBottom: '28px' }}>
+                <SectionTitle icon="✨" title="Quick Insights" />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                  {a.insights.map((ins, i) => {
+                    const c = insightColors[ins.type]
+                    return (
+                      <div key={i} style={{
+                        background: c.bg, border: `1px solid ${c.border}`,
+                        borderRadius: '14px', padding: '14px 16px',
+                        display: 'flex', gap: '12px', alignItems: 'flex-start',
+                      }}>
+                        <span style={{ fontSize: '22px', lineHeight: 1.2 }}>{ins.icon}</span>
+                        <div>
+                          <p style={{ fontWeight: '700', fontSize: '14px', color: c.text, marginBottom: '2px' }}>{ins.title}</p>
+                          <p style={{ fontSize: '12px', color: c.text, opacity: 0.8 }}>{ins.body}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Two-col: top items + payment breakdown */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
+              {/* Top Items */}
+              <div className="card" style={{ padding: '20px' }}>
+                <SectionTitle icon="🔥" title="Top Selling Items" />
+                {a.topItems.length === 0
+                  ? <EmptyState text="No data yet" />
+                  : a.topItems.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <div style={{
+                        width: '28px', height: '28px', borderRadius: '8px',
+                        background: 'linear-gradient(135deg, #d4af37, #fceea7)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontWeight: '800', fontSize: '13px', color: 'var(--coffee-dark)', flexShrink: 0,
+                      }}>{i + 1}</div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontWeight: '700', fontSize: '14px', color: 'var(--coffee-dark)' }}>{item.name}</p>
+                        <div style={{ height: '6px', background: '#f0e8df', borderRadius: '4px', marginTop: '4px' }}>
+                          <div style={{
+                            height: '6px', borderRadius: '4px',
+                            background: 'linear-gradient(90deg, #d4af37, #22c55e)',
+                            width: `${Math.round((item.sold / (a.topItems[0]?.sold || 1)) * 100)}%`,
+                          }} />
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontWeight: '800', fontSize: '14px', color: 'var(--coffee-dark)' }}>{item.sold} แก้ว</p>
+                        <p style={{ fontSize: '11px', color: 'var(--coffee-light)' }}>{currency}{item.revenue}</p>
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+
+              {/* Payment types */}
+              <div className="card" style={{ padding: '20px' }}>
+                <SectionTitle icon="💳" title="Payment Breakdown" />
+                {Object.keys(a.paymentBreakdown).length === 0
+                  ? <EmptyState text="No payment data" />
+                  : Object.entries(a.paymentBreakdown).map(([type, data]) => {
+                    const icons: Record<string, string> = { cash: '💵', transfer: '🏦', promptpay: '📲', unknown: '❓' }
+                    const pct = a.totalOrders > 0 ? Math.round((data.count / a.totalOrders) * 100) : 0
+                    return (
+                      <div key={type} style={{ marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: '700', fontSize: '14px', textTransform: 'capitalize' }}>
+                            {icons[type] || '💳'} {type}
+                          </span>
+                          <span style={{ fontSize: '13px', color: 'var(--coffee-light)' }}>{pct}% · {currency}{data.revenue}</span>
+                        </div>
+                        <div style={{ height: '8px', background: '#f0e8df', borderRadius: '4px' }}>
+                          <div style={{
+                            height: '8px', borderRadius: '4px',
+                            background: type === 'cash' ? '#22c55e' : type === 'transfer' ? '#60a5fa' : '#a78bfa',
+                            width: `${pct}%`, transition: 'width 0.5s ease',
+                          }} />
+                        </div>
+                      </div>
+                    )
+                  })
+                }
+              </div>
+            </div>
+
+            {/* Employee summary */}
+            <div className="card" style={{ padding: '20px' }}>
+              <SectionTitle icon="👥" title="Employee Summary" />
+              {Object.keys(summary).length === 0
+                ? <EmptyState text="No attendance records for this period." />
+                : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #f0e8df' }}>
+                          {['Employee', 'Role', 'Sessions', 'Total Hours', 'Avg / Day'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: '700', color: 'var(--coffee-light)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(summary).map(([id, emp]) => (
+                          <tr key={id} style={{ borderBottom: '1px solid #f0e8df' }}>
+                            <td style={{ padding: '12px', fontWeight: '700', color: 'var(--coffee-dark)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                  width: '32px', height: '32px', borderRadius: '50%',
+                                  background: 'linear-gradient(135deg, var(--coffee-medium), var(--gold))',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  color: 'white', fontSize: '14px', fontWeight: '800',
+                                }}>{emp.name.charAt(0)}</div>
+                                {emp.name}
+                              </div>
+                            </td>
+                            <td style={{ padding: '12px' }}><span style={{ background: '#f0f9f4', padding: '3px 8px', borderRadius: '6px', fontSize: '13px', color: 'var(--coffee-medium)', fontWeight: '600' }}>{emp.role}</span></td>
+                            <td style={{ padding: '12px', fontWeight: '700' }}>{emp.sessions}</td>
+                            <td style={{ padding: '12px', fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)' }}>{emp.totalHours.toFixed(1)} hrs</td>
+                            <td style={{ padding: '12px', color: 'var(--coffee-light)' }}>{emp.sessions > 0 ? (emp.totalHours / emp.sessions).toFixed(1) : 0} hrs/day</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              }
+            </div>
+          </div>
+        )}
+
+        {/* ── REPORTS TAB ── */}
+        {!loading && activeTab === 'reports' && (
+          <UnifiedReports />
+        )}
+
+        {/* ── CASH CONTROL TAB ── */}
+        {!loading && activeTab === 'cash' && (
+          <CashControl />
+        )}
+
+
+        {/* ── ATTENDANCE TAB ── */}
+        {!loading && activeTab === 'attendance' && (
+          <ManagerAttendancePro />
+        )}
+
+        {/* ── SETTINGS TAB ── */}
+        {!loading && activeTab === 'settings' && (
+          <GlobalSettingsManager />
+        )}
+
+        {/* ── PRODUCTS TAB ── */}
+        {!loading && activeTab === 'products' && (
+          <ProductManager />
+        )}
+
+      </div>
+    </div>
+  )
+}
+
+// ─── Sub-components ───────────────────────────────────────────
+function KPICard({ icon, label, value, sub, accent }: {
+  icon: React.ReactNode; label: string; value: string; sub: string; accent: string
+}) {
+  return (
+    <div style={{
+      background: 'white', borderRadius: '16px',
+      padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+      borderTop: `4px solid ${accent}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+    }}>
+      <div>
+        <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--coffee-light)', marginBottom: '8px' }}>{label}</p>
+        <p style={{ fontSize: '34px', fontWeight: '900', color: 'var(--coffee-dark)', lineHeight: 1 }}>{value}</p>
+        <p style={{ fontSize: '12px', color: 'var(--coffee-light)', marginTop: '4px' }}>{sub}</p>
+      </div>
+      <div style={{
+        width: '44px', height: '44px', borderRadius: '12px',
+        background: accent + '18', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: accent,
+      }}>{icon}</div>
+    </div>
+  )
+}
+
+function SectionTitle({ icon, title }: { icon: string; title: string }) {
+  return (
+    <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--coffee-dark)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {icon} {title}
+    </h3>
+  )
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <p style={{ color: 'var(--coffee-light)', textAlign: 'center', padding: '32px' }}>{text}</p>
+}
+
+function ChipLegend({ color, label }: { color: string; label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div style={{ width: '14px', height: '14px', borderRadius: '4px', background: color }} />
+      <span style={{ fontSize: '12px', color: 'var(--coffee-light)' }}>{label}</span>
+    </div>
+  )
+}
