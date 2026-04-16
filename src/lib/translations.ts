@@ -81,8 +81,12 @@ export const translations = {
       cancelOrder: 'ยกเลิก',
       status: {
         pending: 'รอดำเนินการ',
+        preparing: 'กำลังชง',
         making: 'กำลังชง',
-        done: 'เสร็จสิ้น',
+        ready: 'พร้อมรับแล้ว!',
+        done: 'พร้อมรับแล้ว!',
+        completed: 'เสร็จสิ้น',
+        cancelled: 'ยกเลิก',
       }
     },
     attendance: {
@@ -397,8 +401,12 @@ export const translations = {
       cancelOrder: 'Cancel',
       status: {
         pending: 'Pending',
-        making: 'Making',
-        done: 'Done',
+        preparing: 'Preparing',
+        making: 'Preparing',
+        ready: 'Ready',
+        done: 'Ready',
+        completed: 'Completed',
+        cancelled: 'Cancelled',
       }
     },
     attendance: {

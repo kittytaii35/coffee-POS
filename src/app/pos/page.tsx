@@ -17,10 +17,12 @@ import { MENU_ITEMS } from '@/lib/menu'
 
 type Tab = 'orders' | 'new-order'
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; emoji: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
   pending: { label: 'Pending', color: '#92400e', bg: '#fef3c7', emoji: '⏳' },
   preparing: { label: 'Preparing', color: '#1e40af', bg: '#dbeafe', emoji: '👨‍🍳' },
+  making: { label: 'Preparing', color: '#1e40af', bg: '#dbeafe', emoji: '👨‍🍳' }, // legacy mapping
   ready: { label: 'Ready', color: '#065f46', bg: '#d1fae5', emoji: '✅' },
+  done: { label: 'Ready', color: '#065f46', bg: '#d1fae5', emoji: '✅' }, // legacy mapping
   completed: { label: 'Completed', color: '#1e293b', bg: '#f1f5f9', emoji: '🏁' },
   cancelled: { label: 'Cancelled', color: '#991b1b', bg: '#fee2e2', emoji: '❌' },
 }
@@ -469,7 +471,7 @@ function OrderCard({
   lang: string
 }) {
   const [showPrintMenu, setShowPrintMenu] = useState(false)
-  const config = STATUS_CONFIG[order.status]
+  const config = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
   const timeSince = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
 
   return (
