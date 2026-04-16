@@ -52,7 +52,29 @@ export const translations = {
       addCart: 'เพิ่มลงตะกร้า',
       placing: 'กำลังสั่ง...',
       all: 'ทั้งหมด',
-      loadingItems: 'กำลังโหลดเมนู...'
+      loadingItems: 'กำลังโหลดเมนู...',
+      track: {
+        title: 'ติดตามออเดอร์',
+        orderId: 'รายการสั่งซื้อ',
+        details: 'รายละเอียดออเดอร์',
+        total: 'ยอดชำระสุทธิ',
+        payment: 'ชำระเงิน',
+        paid: 'ชำระแล้ว',
+        unpaid: 'ยังไม่ชำระ',
+        saveQr: 'บันทึก QR Code ออเดอร์',
+        notice: 'ออเดอร์ของคุณจะอยู่ในระบบ 24 ชั่วโมง',
+        notFound: 'ไม่พบออเดอร์',
+        notFoundSub: 'ไม่พบข้อมูลที่คุณระบุ กรุณาลองตรวจสอบใหม่อีกครั้ง',
+        backBtn: 'ไปหน้าสั่งเครื่องดื่ม',
+        updatedAt: 'อัปเดตเมื่อ',
+        cancelled: 'ยกเลิกบริการ',
+        steps: {
+          pending: { label: 'รับออเดอร์แล้ว', labelEn: 'Order Received', desc: 'กำลังรอคิวทำเครื่องดื่ม', descEn: 'Waiting in queue' },
+          preparing: { label: 'กำลังปรุง', labelEn: 'Preparing', desc: 'บาริสต้ากำลังทำเครื่องดื่มของคุณ', descEn: 'Barista is crafting your drink' },
+          ready: { label: 'พร้อมรับ!', labelEn: 'Ready!', desc: 'เชิญมารับเครื่องดื่มที่เคาน์เตอร์ได้เลย', descEn: 'Please collect your drink at the counter' },
+          completed: { label: 'เสร็จสิ้น', labelEn: 'Completed', desc: 'ขอบคุณที่ใช้บริการค่ะ', descEn: 'Thank you for your visit' },
+        }
+      }
     },
     pos: {
       system: 'ระบบแคชเชียร์',
@@ -372,7 +394,29 @@ export const translations = {
       addCart: 'Add to Cart',
       placing: 'Placing order...',
       all: 'All',
-      loadingItems: 'Loading menu...'
+      loadingItems: 'Loading menu...',
+      track: {
+        title: 'Track Order',
+        orderId: 'Order Items',
+        details: 'Order Details',
+        total: 'Total Amount',
+        payment: 'Payment',
+        paid: 'Paid',
+        unpaid: 'Unpaid',
+        saveQr: 'Save Order QR',
+        notice: 'Your order will be available for 24 hours',
+        notFound: 'Order Not Found',
+        notFoundSub: 'The order you are looking for does not exist.',
+        backBtn: 'Back to Ordering',
+        updatedAt: 'Updated at',
+        cancelled: 'Order Cancelled',
+        steps: {
+          pending: { label: 'Order Received', labelEn: 'Order Received', desc: 'Waiting in queue', descEn: 'Waiting in queue' },
+          preparing: { label: 'Preparing', labelEn: 'Preparing', desc: 'Barista is crafting your drink', descEn: 'Barista is crafting your drink' },
+          ready: { label: 'Ready!', labelEn: 'Ready!', desc: 'Please collect your drink at the counter', descEn: 'Please collect your drink at the counter' },
+          completed: { label: 'Completed', labelEn: 'Completed', desc: 'Thank you for your visit', descEn: 'Thank you for your visit' },
+        }
+      }
     },
     pos: {
       system: 'POS System',

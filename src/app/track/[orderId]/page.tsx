@@ -4,19 +4,11 @@ import { useEffect, useState, use } from 'react'
 import { supabase, Order, OrderStatus } from '@/lib/supabase'
 import {
   Clock, ChefHat, CheckCircle, Package,
-  ArrowLeft, Coffee, MapPin, QrCode, ExternalLink,
-  ChevronRight, Calendar, CreditCard, Loader2
+  ArrowLeft, Coffee, QrCode, Calendar, CreditCard, Loader2
 } from 'lucide-react'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
-
-const STATUS_STEPS: { status: OrderStatus; label: string; icon: any; desc: string }[] = [
-  { status: 'pending', label: 'รับออเดอร์แล้ว', icon: Clock, desc: 'กำลังรอคิวทำเครื่องดื่ม' },
-  { status: 'preparing', label: 'กำลังปรุง', icon: ChefHat, desc: 'บาริสต้ากำลังทำเครื่องดื่มของคุณ' },
-  { status: 'ready', label: 'พร้อมรับ!', icon: CheckCircle, desc: 'เชิญมารับเครื่องดื่มที่เคาน์เตอร์ได้เลย' },
-  { status: 'completed', label: 'เสร็จสิ้น', icon: Package, desc: 'ขอบคุณที่ใช้บริการค่ะ' },
-]
 
 export default function TrackOrderPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params)
@@ -24,6 +16,14 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
   const [loading, setLoading] = useState(true)
   const { lang } = useLanguage()
   const t = translations[lang].common
+  const tr = translations[lang].order.track
+
+  const STATUS_STEPS: { status: OrderStatus; icon: any; key: keyof typeof tr.steps }[] = [
+    { status: 'pending', icon: Clock, key: 'pending' },
+    { status: 'preparing', icon: ChefHat, key: 'preparing' },
+    { status: 'ready', icon: CheckCircle, key: 'ready' },
+    { status: 'completed', icon: Package, key: 'completed' },
+  ]
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -39,7 +39,6 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
 
     fetchOrder()
 
-    // Real-time subscription
     const channel = supabase
       .channel(`track-${orderId}`)
       .on('postgres_changes', {
@@ -60,7 +59,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#faf7f4' }}>
-        <Loader2 className="spin" size={32} color="var(--coffee-medium)" />
+        <Loader2 className="animate-spin" size={32} color="var(--coffee-medium)" />
       </div>
     )
   }
@@ -71,10 +70,10 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
         <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
           <Package size={40} color="#ef4444" />
         </div>
-        <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--coffee-dark)' }}>ไม่พบออเดอร์</h2>
-        <p style={{ color: 'var(--coffee-light)', marginTop: '8px', marginBottom: '24px' }}>ไม่พบข้อมูลที่คุณระบุ กรุณาลองตรวจสอบใหม่อีกครั้ง</p>
+        <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--coffee-dark)' }}>{tr.notFound}</h2>
+        <p style={{ color: 'var(--coffee-light)', marginTop: '8px', marginBottom: '24px' }}>{tr.notFoundSub}</p>
         <Link href="/order" style={{ padding: '12px 24px', borderRadius: '12px', background: 'var(--coffee-dark)', color: 'white', textDecoration: 'none', fontWeight: '700' }}>
-          ไปหน้าสั่งเครื่องดื่ม
+          {tr.backBtn}
         </Link>
       </div>
     )
@@ -82,6 +81,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
 
   const currentStep = STATUS_STEPS.findIndex(s => s.status === order.status)
   const isCancelled = order.status === 'cancelled'
+  const currentStepData = STATUS_STEPS[currentStep] ? tr.steps[STATUS_STEPS[currentStep].key] : null
 
   return (
     <div style={{ minHeight: '100vh', background: '#faf7f4', paddingBottom: '40px' }}>
@@ -99,7 +99,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
             <ArrowLeft size={20} />
           </Link>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>รายการสั่งซื้อ</p>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>{tr.orderId}</p>
             <h1 style={{ fontSize: '18px', fontWeight: '800' }}>{order.order_id || `#${order.id.slice(-8).toUpperCase()}`}</h1>
           </div>
         </div>
@@ -107,7 +107,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
         <div style={{ textAlign: 'center', marginTop: '12px' }}>
           {isCancelled ? (
             <div style={{ display: 'inline-flex', padding: '8px 24px', borderRadius: '24px', background: '#fee2e2', color: '#dc2626', fontWeight: '800', fontSize: '18px' }}>
-              ❌ ยกเลิกบริการ
+              ❌ {tr.cancelled}
             </div>
           ) : (
             <div style={{ display: 'inline-flex', padding: '12px 28px', borderRadius: '24px', background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', alignItems: 'center', gap: '12px' }}>
@@ -117,10 +117,10 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
               </div>
               <div style={{ textAlign: 'left' }}>
                 <p style={{ fontSize: '20px', fontWeight: '900', color: 'var(--gold)', lineHeight: 1.1 }}>
-                  {STATUS_STEPS[currentStep]?.label}
+                  {currentStepData?.label}
                 </p>
                 <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
-                  {STATUS_STEPS[currentStep]?.desc}
+                  {currentStepData?.desc}
                 </p>
               </div>
             </div>
@@ -130,7 +130,6 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
 
       {/* Content */}
       <div style={{ padding: '0 20px', marginTop: '-30px' }}>
-        {/* Timeline 卡片 */}
         {!isCancelled && (
           <div style={{ background: 'white', borderRadius: '24px', padding: '24px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
@@ -142,25 +141,32 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
                 const isActive = idx <= currentStep
                 const isCurrent = idx === currentStep
                 const StepIcon = step.icon
+                const stepData = tr.steps[step.key]
 
                 return (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', zIndex: 10 }}>
+                  <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', position: 'relative', zIndex: 10 }}>
                     <div style={{
-                      width: '34px', height: '34px', borderRadius: '50%',
+                      width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0,
                       background: isCurrent ? 'var(--coffee-medium)' : isActive ? 'var(--coffee-light)' : 'white',
                       border: `2px solid ${isActive ? 'transparent' : '#f1f5f9'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       color: isActive ? 'white' : '#cbd5e1',
                       transition: 'all 0.3s ease',
-                      boxShadow: isCurrent ? '0 0 15px rgba(44,89,66,0.3)' : 'none'
+                      boxShadow: isCurrent ? '0 0 15px rgba(44,89,66,0.3)' : 'none',
+                      marginTop: '2px'
                     }}>
                       <StepIcon size={16} />
                     </div>
-                    <div>
-                      <h4 style={{ fontSize: '15px', fontWeight: isCurrent ? '800' : '600', color: isCurrent ? 'var(--coffee-dark)' : isActive ? 'var(--coffee-medium)' : '#94a3b8' }}>
-                        {step.label}
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontSize: '15px', fontWeight: isCurrent ? '800' : '600', color: isCurrent ? 'var(--coffee-dark)' : isActive ? 'var(--coffee-medium)' : '#94a3b8', lineHeight: 1.2 }}>
+                        {stepData.label}
+                        <span style={{ display: 'block', fontSize: '11px', fontWeight: '400', opacity: 0.7 }}>{stepData.labelEn}</span>
                       </h4>
-                      {isCurrent && <p style={{ fontSize: '11px', color: 'rgba(0,0,0,0.4)', marginTop: '2px' }}>อัปเดตเมื่อ {new Date(order.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</p>}
+                      {isCurrent && (
+                        <p style={{ fontSize: '11px', color: 'rgba(0,0,0,0.4)', marginTop: '4px', background: '#f8fafc', padding: '4px 8px', borderRadius: '6px', display: 'inline-block' }}>
+                          {tr.updatedAt} {new Date(order.updated_at || order.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )
@@ -169,18 +175,17 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
           </div>
         )}
 
-        {/* Order Details */}
         <div style={{ background: 'white', borderRadius: '24px', padding: '24px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px' }}>
             <Calendar size={18} color="var(--coffee-light)" />
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--coffee-dark)' }}>รายละเอียดออเดอร์</h3>
+            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--coffee-dark)' }}>{tr.details}</h3>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {order.items.map((item, idx) => (
+            {order.items.map((item: any, idx: number) => (
               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <div>
-                  <p style={{ fontWeight: '700', fontSize: '15px', color: 'var(--coffee-dark)' }}>{item.name} x{item.quantity}</p>
+                  <p style={{ fontWeight: '700', fontSize: '15px', color: 'var(--coffee-dark)' }}>{lang === 'th' ? (item.name_th || item.name) : (item.name_en || item.name)} x{item.quantity}</p>
                   <p style={{ fontSize: '12px', color: 'var(--coffee-light)', marginTop: '2px' }}>
                     {[item.sweetness ? `หวาน ${item.sweetness}%` : '', ...(item.toppings || [])].filter(Boolean).join(', ')}
                   </p>
@@ -191,32 +196,30 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
           </div>
 
           <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '2px dashed #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '14px', color: 'var(--coffee-light)', fontWeight: '600' }}>ยอดชำระสุทธิ</span>
+            <span style={{ fontSize: '14px', color: 'var(--coffee-light)', fontWeight: '600' }}>{tr.total}</span>
             <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--coffee-dark)' }}>฿{order.total}</span>
           </div>
 
           <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', padding: '10px', borderRadius: '12px' }}>
             <CreditCard size={16} color="#64748b" />
-            <span style={{ fontSize: '13px', color: '#64748b' }}>ชำระเงิน: {order.payment_type === 'promptpay' ? 'PromptPay QR' : order.payment_type === 'cash' ? 'เงินสด' : 'โอนเงิน'}</span>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>{tr.payment}: {order.payment_type === 'promptpay' ? 'PromptPay QR' : order.payment_type === 'cash' ? 'เงินสด' : 'โอนเงิน'}</span>
             <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: '700', color: order.paid ? '#22c55e' : '#f59e0b' }}>
-              {order.paid ? 'ชำระแล้ว' : 'ยังไม่ชำระ'}
+              {order.paid ? tr.paid : tr.unpaid}
             </span>
           </div>
         </div>
 
-        {/* Footer actions */}
         <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px' }}>
            <button 
              onClick={() => window.print()}
              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '16px', borderRadius: '16px', background: 'white', border: '1.5px solid #e2e8f0', color: '#64748b', fontWeight: '700', fontSize: '15px' }}
            >
-             <QrCode size={18} /> บันทึก QR Code ออเดอร์
+             <QrCode size={18} /> {tr.saveQr}
            </button>
-           <p style={{ fontSize: '11px', color: '#94a3b8' }}>* ออเดอร์ของคุณจะอยู่ในระบบ 24 ชั่วโมง</p>
+           <p style={{ fontSize: '11px', color: '#94a3b8' }}>* {tr.notice}</p>
         </div>
       </div>
       
-      {/* Real-time Indicator */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
         <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
         Live Tracking
