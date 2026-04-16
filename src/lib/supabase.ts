@@ -35,6 +35,7 @@ export type AttendanceStatus = 'working' | 'done'
 export interface OrderItem {
   id: string
   name: string
+  name_th?: string
   price: number
   quantity: number
   sweetness?: string

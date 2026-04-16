@@ -7,12 +7,14 @@ export interface ReceiptData {
   customerName: string
   items: Array<{
     name: string
+    name_th?: string
     quantity: number
     price: number
   }>
   total: number
   paymentType: string
   timestamp: string
+  qrCode?: string // Base64 data URL for QR code
 }
 
 // ESC/POS commands
@@ -170,3 +172,141 @@ export async function printReceiptBluetooth(
     return { success: false, error: msg }
   }
 }
+
+/**
+ * Browser / OS Print  — works with any USB or network printer installed on this PC.
+ * Opens a styled popup that matches a standard 80 mm thermal receipt,
+ * then calls window.print() so the OS print dialog appears.
+ */
+export function printReceiptBrowser(data: ReceiptData): { success: boolean; error?: string } {
+  try {
+    const itemRows = data.items
+      .map(
+        (item) =>
+          `<tr>
+            <td style="padding:2px 0">
+              <div style="font-weight:bold">${item.name}</div>
+              ${item.name_th ? `<div style="font-size:13px; color:#333">${item.name_th}</div>` : ''}
+            </td>
+            <td style="text-align:center;padding:2px 4px">x${item.quantity}</td>
+            <td style="text-align:right;padding:2px 0">฿${(item.price * item.quantity).toFixed(2)}</td>
+          </tr>`
+      )
+      .join('')
+
+    const html = `<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Receipt #${data.orderId.slice(-8).toUpperCase()}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Sarabun', 'Microsoft Sans Serif', 'Tahoma', sans-serif;
+      font-size: 14px;
+      width: 72mm; /* Standard printable width for 80mm rolls */
+      margin: 0 auto;
+      padding: 1mm 0;
+      color: #000;
+      line-height: 1.2;
+    }
+    .center { text-align: center; }
+    .bold   { font-weight: bold; }
+    .large  { font-size: 22px; }
+    .sep    { border-top: 1px dashed #000; margin: 4px 0; }
+    table   { width: 100%; border-collapse: collapse; }
+    td      { vertical-align: top; font-size: 14px; }
+    .total-row td { font-weight: bold; font-size: 18px; border-top: 1px dashed #000; padding-top: 5px; }
+    .qr-container { margin-top: 10px; text-align: center; }
+    .qr-code { width: 160px; height: 160px; }
+    .footer { margin-top: 8px; font-size: 12px; }
+    @media print {
+      @page { margin: 0; size: 80mm auto; }
+      body { width: 72mm; margin: 0 auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="center bold large">${data.shopName}</div>
+  <div class="center" style="font-size:10px;margin-bottom:2px">บิลใบเสร็จ / Receipt</div>
+  <div class="sep"></div>
+  <div style="font-size:10px">ออเดอร์: #${data.orderId.slice(-8).toUpperCase()}</div>
+  <div style="font-size:10px">ลูกค้า: ${data.customerName}</div>
+  <div style="font-size:10px">เวลา: ${data.timestamp}</div>
+  <div class="sep" style="margin-bottom:2px"></div>
+  <table>
+    <thead>
+      <tr class="bold">
+        <td>รายการ</td>
+        <td style="text-align:center">จำนวน</td>
+        <td style="text-align:right">ราคา</td>
+      </tr>
+    </thead>
+    <tbody>${itemRows}</tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td colspan="2">รวมทั้งหมด</td>
+        <td style="text-align:right">฿${data.total.toFixed(2)}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <div style="margin-top:4px; font-size:10px">ชำระโดย: ${data.paymentType.toUpperCase()}</div>
+
+  ${data.qrCode ? `
+  <div class="qr-container" style="margin-top: 4px;">
+    <img src="${data.qrCode}" class="qr-code" style="width: 90px; height: 90px;" />
+    <div style="font-size: 8px; margin-top: 2px; color: #666;">Scan to Verify / Pay</div>
+  </div>
+  ` : ''}
+  <div class="sep"></div>
+  <div class="center footer" style="margin-top: 2px;">
+    <div>ขอบคุณที่ใช้บริการ / Thank you!</div>
+  </div>
+</body>
+</html>`
+
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    
+    // Create iframe with a reasonable size (some browsers block 0x0 or hidden from printing)
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.width = '300px'
+    iframe.style.height = '300px'
+    iframe.style.left = '-1000px'
+    iframe.style.top = '-1000px'
+    iframe.style.opacity = '0'
+    iframe.src = url
+    
+    document.body.appendChild(iframe)
+
+    iframe.onload = () => {
+      // Small buffer for rendering
+      setTimeout(() => {
+        try {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.focus()
+            iframe.contentWindow.print()
+          }
+        } catch (e) {
+          console.error('Auto-print error:', e)
+          // Final fallback: try window.open if iframe fails (unlikely in user-click context)
+        }
+        
+        // Cleanup after window is likely done or canceled
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe)
+            URL.revokeObjectURL(url)
+          }
+        }, 60000)
+      }, 500)
+    }
+
+    return { success: true }
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Print failed'
+    return { success: false, error: msg }
+  }
+}
+

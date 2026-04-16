@@ -7,8 +7,12 @@ import {
   AlertCircle, Shield, Globe
 } from 'lucide-react'
 import { useSettings } from '@/context/SettingsContext'
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
 
 export default function GlobalSettingsManager() {
+  const { lang } = useLanguage()
+  const t = translations[lang].settingsPage
   const { settings, loading: contextLoading, refresh } = useSettings()
   const [localSettings, setLocalSettings] = useState(settings)
   const [saving, setSaving] = useState(false)
@@ -40,18 +44,16 @@ export default function GlobalSettingsManager() {
           value: localSettings[category]
         })
       })
-      if (!res.ok) throw new Error('Failed to save')
-      
-      setMessage({ type: 'success', text: `${category.toUpperCase()} settings updated successfully!` })
+      setMessage({ type: 'success', text: `${category.toUpperCase()} ${t.successSave}` })
       await refresh()
     } catch (err) {
-      setMessage({ type: 'error', text: 'Error saving settings. Please try again.' })
+      setMessage({ type: 'error', text: t.errSave })
     } finally {
       setSaving(false)
     }
   }
 
-  if (contextLoading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading Settings...</div>
+  if (contextLoading) return <div style={{ padding: '40px', textAlign: 'center' }}>{t.loading}</div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '1000px' }}>
@@ -59,14 +61,14 @@ export default function GlobalSettingsManager() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--coffee-dark)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Settings size={28} /> Global System Configuration
+            <Settings size={28} /> {t.globalConfig}
           </h2>
           <p style={{ color: 'var(--coffee-light)', fontSize: '14px', marginTop: '4px' }}>
-            Centralized source of truth for all system modules. Changes reflect in real-time.
+            {t.globalDesc}
           </p>
         </div>
         <button onClick={() => refresh()} style={btnSecondaryStyle}>
-          <RefreshCw size={16} /> Sync Now
+          <RefreshCw size={16} /> {t.syncNow}
         </button>
       </div>
 
@@ -88,13 +90,14 @@ export default function GlobalSettingsManager() {
         {/* POS SETTINGS */}
         <SettingsCard 
           icon={<Wallet color="#d4af37" />} 
-          title="POS & Sales" 
-          description="Tax, currency, and payment behavior"
+          title={t.posSales} 
+          description={t.posSalesDesc}
           onSave={() => saveSettings('pos')}
           saving={saving}
+          saveText={t.save}
         >
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>VAT Rate (%)</label>
+            <label style={labelStyle}>{t.vatRate}</label>
             <input 
               type="number" 
               value={localSettings.pos.vat_rate} 
@@ -103,7 +106,7 @@ export default function GlobalSettingsManager() {
             />
           </div>
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Currency Symbol</label>
+            <label style={labelStyle}>{t.currencySym}</label>
             <input 
               type="text" 
               value={localSettings.pos.currency} 
@@ -112,7 +115,7 @@ export default function GlobalSettingsManager() {
             />
           </div>
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Enable QR Payment</label>
+            <label style={labelStyle}>{t.enableQr}</label>
             <Toggle 
               active={localSettings.pos.enable_qr} 
               onToggle={(v) => handleUpdate('pos', 'enable_qr', v)} 
@@ -123,14 +126,15 @@ export default function GlobalSettingsManager() {
         {/* ATTENDANCE SETTINGS */}
         <SettingsCard 
           icon={<MapPin color="#3b82f6" />} 
-          title="Attendance & GPS" 
-          description="Geofencing and check-in rules"
+          title={t.attGps} 
+          description={t.attGpsDesc}
           onSave={() => saveSettings('attendance')}
           saving={saving}
+          saveText={t.save}
         >
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px' }}>
             <div style={fieldGroupStyleInline}>
-              <label style={labelStyleSmall}>Lat</label>
+              <label style={labelStyleSmall}>{t.lat}</label>
               <input 
                 type="number" 
                 value={localSettings.attendance.shop_lat} 
@@ -139,7 +143,7 @@ export default function GlobalSettingsManager() {
               />
             </div>
             <div style={fieldGroupStyleInline}>
-              <label style={labelStyleSmall}>Lng</label>
+              <label style={labelStyleSmall}>{t.lng}</label>
               <input 
                 type="number" 
                 value={localSettings.attendance.shop_lng} 
@@ -149,7 +153,7 @@ export default function GlobalSettingsManager() {
             </div>
           </div>
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Allowed Radius (Meters)</label>
+            <label style={labelStyle}>{t.radiusMode}</label>
             <input 
               type="number" 
               value={localSettings.attendance.allowed_radius_meters} 
@@ -158,7 +162,7 @@ export default function GlobalSettingsManager() {
             />
           </div>
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Require Photo on Check-in</label>
+            <label style={labelStyle}>{t.reqPhoto}</label>
             <Toggle 
               active={localSettings.attendance.require_photo} 
               onToggle={(v) => handleUpdate('attendance', 'require_photo', v)} 
@@ -169,23 +173,24 @@ export default function GlobalSettingsManager() {
         {/* NOTIFICATIONS */}
         <SettingsCard 
           icon={<Bell color="#f59e0b" />} 
-          title="Notifications" 
-          description="LINE and system alerts"
+          title={t.notifications} 
+          description={t.notifDesc}
           onSave={() => saveSettings('notifications')}
           saving={saving}
+          saveText={t.save}
         >
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>LINE Notify Access Token</label>
+            <label style={labelStyle}>{t.lineToken}</label>
             <input 
               type="password" 
               value={localSettings.notifications.line_token} 
               onChange={e => handleUpdate('notifications', 'line_token', e.target.value)}
-              placeholder="Leave blank to use environment default"
+              placeholder={t.lineTokenHold}
               style={inputStyle}
             />
           </div>
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Enable LINE Notifications</label>
+            <label style={labelStyle}>{t.enableLine}</label>
             <Toggle 
               active={localSettings.notifications.line_enabled} 
               onToggle={(v) => handleUpdate('notifications', 'line_enabled', v)} 
@@ -196,13 +201,14 @@ export default function GlobalSettingsManager() {
         {/* RECEIPT & BRANDING */}
         <SettingsCard 
           icon={<Receipt color="#8b5cf6" />} 
-          title="Receipt & Branding" 
-          description="Printed receipt format and info"
+          title={t.receiptBrand} 
+          description={t.receiptBrandDesc}
           onSave={() => saveSettings('receipt')}
           saving={saving}
+          saveText={t.save}
         >
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Shop Name (Header)</label>
+            <label style={labelStyle}>{t.shopName}</label>
             <input 
               type="text" 
               value={localSettings.receipt.header} 
@@ -211,7 +217,7 @@ export default function GlobalSettingsManager() {
             />
           </div>
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Receipt Footer Text</label>
+            <label style={labelStyle}>{t.receiptFoot}</label>
             <input 
               type="text" 
               value={localSettings.receipt.footer} 
@@ -220,7 +226,7 @@ export default function GlobalSettingsManager() {
             />
           </div>
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>PromptPay ID (For QR)</label>
+            <label style={labelStyle}>{t.promptpayId}</label>
             <input 
               type="text" 
               value={localSettings.receipt.promptpay_id} 
@@ -240,10 +246,9 @@ export default function GlobalSettingsManager() {
       }}>
         <Shield size={40} color="var(--gold)" style={{ flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: '300px' }}>
-          <h4 style={{ fontWeight: '800', color: 'var(--coffee-dark)' }}>Data Security Notice</h4>
+          <h4 style={{ fontWeight: '800', color: 'var(--coffee-dark)' }}>{t.securityNotice}</h4>
           <p style={{ fontSize: '13px', color: 'var(--coffee-light)' }}>
-            These settings control financial calculations and staff rules. 
-            All modifications are logged. Sensitive data like LINE tokens are encrypted in transit.
+            {t.securityDesc}
           </p>
         </div>
       </div>
@@ -253,7 +258,7 @@ export default function GlobalSettingsManager() {
 
 // ─── Internal Sub-components ───
 
-function SettingsCard({ icon, title, description, children, onSave, saving }: any) {
+function SettingsCard({ icon, title, description, children, onSave, saving, saveText = 'Save' }: any) {
   return (
     <div style={{ background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.04)', border: '1px solid #f0e8df', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
@@ -267,7 +272,7 @@ function SettingsCard({ icon, title, description, children, onSave, saving }: an
           </div>
         </div>
         <button onClick={onSave} disabled={saving} style={btnSaveStyle}>
-          {saving ? <RefreshCw size={14} className="spin" /> : <Save size={14} />} Save
+          {saving ? <RefreshCw size={14} className="spin" /> : <Save size={14} />} {saveText}
         </button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

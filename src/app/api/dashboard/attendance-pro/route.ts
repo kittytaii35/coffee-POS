@@ -39,9 +39,18 @@ export async function GET(req: NextRequest) {
     const todayRecords = records?.filter(r => r.check_in >= todayStart) || []
     
     // Summary computations
+    const nowTs = Date.now()
     const totalStaffToday = new Set(todayRecords.map(r => r.employee_id)).size
     const workingNow = liveStaff.length
-    const totalHoursToday = parseFloat(todayRecords.reduce((acc, r) => acc + (r.work_hours || 0), 0).toFixed(2))
+    const totalHoursToday = parseFloat(todayRecords.reduce((acc, r) => {
+      let sessionHours = r.work_hours || 0
+      // If still working, calculate live hours
+      if (!r.check_out && r.check_in) {
+        const start = new Date(r.check_in).getTime()
+        sessionHours = Math.max(0, (nowTs - start) / (1000 * 60 * 60))
+      }
+      return acc + sessionHours
+    }, 0).toFixed(2))
 
     // Late detection (after 09:15 AM)
     const lateArrivals = todayRecords.filter(r => {

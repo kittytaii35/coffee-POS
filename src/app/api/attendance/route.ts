@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
     if (error) throw error
 
     // Calculate summary per employee
+    const nowTs = Date.now()
     const summary: Record<string, { name: string; role: string; totalHours: number; sessions: number }> = {}
     records?.forEach((r) => {
       const emp = r.employees as { id?: string; name: string; role: string } | null
@@ -58,7 +59,15 @@ export async function GET(req: NextRequest) {
       if (!summary[empId]) {
         summary[empId] = { name: emp.name, role: emp.role, totalHours: 0, sessions: 0 }
       }
-      summary[empId].totalHours += r.work_hours || 0
+      
+      let sessionHours = r.work_hours || 0
+      // Calculate live hours if still working
+      if (!r.check_out && r.check_in) {
+        const start = new Date(r.check_in).getTime()
+        sessionHours = Math.max(0, (nowTs - start) / (1000 * 60 * 60))
+      }
+      
+      summary[empId].totalHours += sessionHours
       summary[empId].sessions += 1
     })
 

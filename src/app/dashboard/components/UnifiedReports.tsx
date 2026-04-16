@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { Download, PieChart as PieIcon, TrendingUp, Users, Coffee } from 'lucide-react'
 import { useSettings } from '@/context/SettingsContext'
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
 
 export default function UnifiedReports() {
   const [data, setData] = useState<any>(null)
@@ -11,6 +13,8 @@ export default function UnifiedReports() {
   const [activeTab, setActiveTab] = useState<'sales' | 'products' | 'payments' | 'staff'>('sales')
   
   const { settings, loading: settingsLoading } = useSettings()
+  const { lang } = useLanguage()
+  const t = translations[lang].reports
   const currency = settings.pos.currency
 
   useEffect(() => {
@@ -32,13 +36,13 @@ export default function UnifiedReports() {
     document.body.removeChild(link)
   }
 
-  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading Analytics...</div>
-  if (!data) return <div style={{ padding: '40px', textAlign: 'center', color: 'red' }}>Failed to load reports.</div>
+  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>{t.loading}</div>
+  if (!data) return <div style={{ padding: '40px', textAlign: 'center', color: 'red' }}>{t.failed}</div>
 
   const paymentData = [
-    { name: 'Cash', value: data.payments?.cash || 0, color: '#f59e0b' },
-    { name: 'Transfer', value: data.payments?.transfer || 0, color: '#3b82f6' },
-    { name: 'PromptPay', value: data.payments?.promptpay || 0, color: '#10b981' },
+    { name: t.cash || 'Cash', value: data.payments?.cash || 0, color: '#f59e0b' },
+    { name: t.transfer || 'Transfer', value: data.payments?.transfer || 0, color: '#3b82f6' },
+    { name: t.promptpay || 'PromptPay', value: data.payments?.promptpay || 0, color: '#10b981' },
   ].filter(d => d.value > 0)
 
   return (
@@ -46,10 +50,10 @@ export default function UnifiedReports() {
       
       {/* ── Sub Navigation ── */}
       <div style={{ display: 'flex', gap: '8px', borderBottom: '2px solid #f3f4f6', paddingBottom: '16px' }}>
-        <button onClick={() => setActiveTab('sales')} style={tabStyle(activeTab === 'sales')}><TrendingUp size={16}/> Sales & Peak</button>
-        <button onClick={() => setActiveTab('products')} style={tabStyle(activeTab === 'products')}><Coffee size={16}/> Products</button>
-        <button onClick={() => setActiveTab('payments')} style={tabStyle(activeTab === 'payments')}><PieIcon size={16}/> Payments</button>
-        <button onClick={() => setActiveTab('staff')} style={tabStyle(activeTab === 'staff')}><Users size={16}/> Staff & Hours</button>
+        <button onClick={() => setActiveTab('sales')} style={tabStyle(activeTab === 'sales')}><TrendingUp size={16}/> {t.salesPeak}</button>
+        <button onClick={() => setActiveTab('products')} style={tabStyle(activeTab === 'products')}><Coffee size={16}/> {t.products}</button>
+        <button onClick={() => setActiveTab('payments')} style={tabStyle(activeTab === 'payments')}><PieIcon size={16}/> {t.payments}</button>
+        <button onClick={() => setActiveTab('staff')} style={tabStyle(activeTab === 'staff')}><Users size={16}/> {t.staffHours}</button>
       </div>
 
       {/* ── SALES TAB ── */}
@@ -58,11 +62,11 @@ export default function UnifiedReports() {
           
           <div className="card" style={{ padding: '24px', background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '800' }}>Daily Revenue Trend (30 Days)</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: '800' }}>{t.dailyTrend}</h3>
               <button 
                 onClick={() => exportCSV('Sales_Trend.csv', ['Date', 'Revenue'], data.sales.map((s: any) => [s.date, s.revenue]))}
                 style={btnExportStyle}
-              ><Download size={14} /> Export CSV</button>
+              ><Download size={14} /> {t.exportCsv}</button>
             </div>
             <div style={{ height: '300px' }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -77,7 +81,7 @@ export default function UnifiedReports() {
           </div>
 
           <div className="card" style={{ padding: '24px', background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '16px' }}>Peak Order Times (24h)</h3>
+            <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '16px' }}>{t.peakTimes}</h3>
             <div style={{ height: '250px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.peak}>
@@ -96,24 +100,24 @@ export default function UnifiedReports() {
       {activeTab === 'products' && (
         <div className="card" style={{ padding: '24px', background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: '800' }}>Top Selling Products</h3>
+            <h3 style={{ fontSize: '18px', fontWeight: '800' }}>{t.topProducts}</h3>
             <button 
               onClick={() => exportCSV('Products_Sales.csv', ['Product', 'Qty Sold', `Revenue (${currency})`], data.products.map((p: any) => [p.name, p.qty, p.revenue]))}
               style={btnExportStyle}
-            ><Download size={14} /> Export CSV</button>
+            ><Download size={14} /> {t.exportCsv}</button>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Product</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Qty Sold</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>{`Revenue (${currency})`}</th>
+                <th style={{ padding: '12px', textAlign: 'left' }}>{t.product}</th>
+                <th style={{ padding: '12px', textAlign: 'right' }}>{t.qty}</th>
+                <th style={{ padding: '12px', textAlign: 'right' }}>{t.totRev} ({currency})</th>
               </tr>
             </thead>
             <tbody>
               {data.products.map((p: any, i: number) => (
                 <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '12px', fontWeight: '600' }}>{p.name}</td>
+                  <td style={{ padding: '12px', fontWeight: '600' }}>{lang === 'en' ? p.name : (p.name_th || p.name)}</td>
                   <td style={{ padding: '12px', textAlign: 'right' }}>{p.qty}</td>
                   <td style={{ padding: '12px', textAlign: 'right', fontWeight: '700', color: '#16a34a' }}>{currency}{p.revenue.toLocaleString()}</td>
                 </tr>
@@ -127,7 +131,7 @@ export default function UnifiedReports() {
       {activeTab === 'payments' && (
         <div className="card" style={{ padding: '24px', background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '40px flex-wrap: wrap' }}>
           <div style={{ flex: '1', minWidth: '300px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '16px' }}>Payment Method Breakdown</h3>
+            <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '16px' }}>{t.payMethods}</h3>
             <div style={{ height: '300px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -151,7 +155,7 @@ export default function UnifiedReports() {
                 </div>
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#fdf6f0', borderRadius: '12px' }}>
-                <span style={{ fontWeight: '800' }}>Total Revenue</span>
+                <span style={{ fontWeight: '800' }}>{t.totRev}</span>
                 <span style={{ fontWeight: '900', fontSize: '20px', color: '#d97706' }}>
                   {currency}{data.payments?.total?.toLocaleString() || 0}
                 </span>
@@ -165,18 +169,18 @@ export default function UnifiedReports() {
       {activeTab === 'staff' && (
         <div className="card" style={{ padding: '24px', background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: '800' }}>Staff Working Hours (30 Days)</h3>
+            <h3 style={{ fontSize: '18px', fontWeight: '800' }}>{t.staffHours30}</h3>
             <button 
               onClick={() => exportCSV('Staff_Hours.csv', ['Name', 'Shifts', 'Total Hours'], data.staff.map((s: any) => [s.name, s.shifts, s.hours]))}
               style={btnExportStyle}
-            ><Download size={14} /> Export CSV</button>
+            ><Download size={14} /> {t.exportCsv}</button>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Staff Name</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Total Shifts</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Total Hours</th>
+                <th style={{ padding: '12px', textAlign: 'right' }}>{t.shifts}</th>
+                <th style={{ padding: '12px', textAlign: 'right' }}>{t.staffHours}</th>
               </tr>
             </thead>
             <tbody>

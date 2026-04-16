@@ -7,13 +7,13 @@ import {
   CheckCircle, Info, BarChart2, Award, Target, RefreshCw
 } from 'lucide-react'
 import { useSettings } from '@/context/SettingsContext'
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
 import { analyzeOrders, AnalyticsResult } from '@/lib/analytics'
 import type { Order } from '@/lib/analytics'
 import ManagerAttendancePro from './components/ManagerAttendancePro'
 import UnifiedReports from './components/UnifiedReports'
 import CashControl from './components/CashControl'
-import GlobalSettingsManager from './components/GlobalSettingsManager'
-import ProductManager from './components/ProductManager'
 
 // ─── Mock fallback with richer data ──────────────────────────
 const mockOrders: Order[] = (() => {
@@ -66,7 +66,7 @@ interface EmployeeSummary {
   name: string; role: string; totalHours: number; sessions: number
 }
 type Period = 'daily' | 'weekly' | 'monthly'
-type Tab = 'overview' | 'reports' | 'cash' | 'attendance' | 'settings' | 'products'
+type Tab = 'overview' | 'reports' | 'cash' | 'attendance'
 
 // ─── Palette helper ───────────────────────────────────────────
 const insightColors = {
@@ -90,21 +90,46 @@ export default function DashboardPage() {
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const { settings, loading: settingsLoading } = useSettings()
+  const { lang, toggleLang } = useLanguage()
+  const t = translations[lang].dashboard
+  const c = translations[lang].common
+
   const currency = settings.pos.currency
   const shopName = settings.receipt.header
-  const shopSub = `Queen Coffee · AI Analytics`
+  const shopSub = `${t.title} · ${t.subtitle}`
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [attRes, ordRes] = await Promise.all([
+      const [attRes, ordRes, menuRes] = await Promise.all([
         fetch(`/api/attendance?period=${period}&date=${date}`),
         fetch(`/api/orders?date=${date}`),
+        fetch(`/api/menu`)
       ])
-      const [attData, ordData] = await Promise.all([attRes.json(), ordRes.json()])
+      const [attData, ordData, menuData] = await Promise.all([attRes.json(), ordRes.json(), menuRes.json()])
+      
       if (attData.records) setRecords(attData.records)
       if (attData.summary) setSummary(attData.summary)
+      
       const fetchedOrders: Order[] = ordData.orders || mockOrders
+
+      // Attach localized names dynamically based on the active language
+      if (menuData.products) {
+        const prodMap = new Map<string, string>()
+        menuData.products.forEach((p: any) => {
+           if (p.name_th) prodMap.set(p.name, p.name_th)
+        })
+        
+        fetchedOrders.forEach(o => {
+          o.items.forEach(i => {
+            const mappedName = prodMap.get(i.name)
+            if (lang === 'th' && mappedName) {
+              i.name = mappedName
+            }
+          })
+        })
+      }
+
       setOrders(fetchedOrders)
       setAnalytics(analyzeOrders(fetchedOrders))
       setLastRefresh(new Date())
@@ -113,7 +138,7 @@ export default function DashboardPage() {
       setAnalytics(analyzeOrders(mockOrders))
     }
     setLoading(false)
-  }, [period, date])
+  }, [period, date, lang])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -143,7 +168,7 @@ export default function DashboardPage() {
       r.employees?.name || 'Unknown',
       r.employees?.role || 'Unknown',
       new Date(r.check_in).toLocaleString('th-TH'),
-      r.check_out ? new Date(r.check_out).toLocaleString('th-TH') : 'Still Working',
+      r.check_out ? new Date(r.check_out).toLocaleString('th-TH') : t.stillWorking,
       r.work_hours || 0,
       r.status,
       r.latitude && r.longitude ? `${r.latitude},${r.longitude}` : 'N/A',
@@ -183,8 +208,8 @@ export default function DashboardPage() {
                 <Coffee size={24} color="var(--coffee-dark)" />
               </div>
               <div>
-                <h1 style={{ color: 'white', fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px' }}>Manager Dashboard</h1>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>{shopName} · AI Analytics</p>
+                <h1 style={{ color: 'white', fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px' }}>{shopName}</h1>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>{shopSub}</p>
               </div>
             </div>
 
@@ -192,15 +217,18 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               {/* Period */}
               <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '4px' }}>
-                {(['daily', 'weekly', 'monthly'] as const).map(p => (
-                  <button key={p} onClick={() => setPeriod(p)} style={{
-                    padding: '6px 14px', borderRadius: '9px', border: 'none',
-                    background: period === p ? 'var(--gold)' : 'transparent',
-                    color: period === p ? 'var(--coffee-dark)' : 'rgba(245,230,211,0.7)',
-                    cursor: 'pointer', fontWeight: period === p ? '700' : '400',
-                    fontSize: '13px', transition: 'all 0.2s', textTransform: 'capitalize',
-                  }}>{p}</button>
-                ))}
+                {(['daily', 'weekly', 'monthly'] as const).map(p => {
+                  const labelMap: Record<string, string> = { daily: c.daily, weekly: c.weekly, monthly: c.monthly }
+                  return (
+                    <button key={p} onClick={() => setPeriod(p)} style={{
+                      padding: '6px 14px', borderRadius: '9px', border: 'none',
+                      background: period === p ? 'var(--gold)' : 'transparent',
+                      color: period === p ? 'var(--coffee-dark)' : 'rgba(245,230,211,0.7)',
+                      cursor: 'pointer', fontWeight: period === p ? '700' : '400',
+                      fontSize: '13px', transition: 'all 0.2s', textTransform: 'capitalize',
+                    }}>{labelMap[p]}</button>
+                  )
+                })}
               </div>
 
               {/* Date nav */}
@@ -222,32 +250,49 @@ export default function DashboardPage() {
               </div>
 
               {/* Refresh */}
-              <button onClick={fetchData} title="Refresh" style={{
+              <button onClick={fetchData} title={t.refresh} style={{
                 width: '32px', height: '32px', borderRadius: '8px',
                 border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
                 cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}><RefreshCw size={14} /></button>
+
+              {/* Lang toggle */}
+              <button onClick={toggleLang} style={{
+                background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)',
+                padding: '6px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', cursor: 'pointer'
+              }}>
+                {c.langToggle}
+              </button>
+
+              {/* Home Link */}
+              <a href="/" style={{ textDecoration: 'none' }}>
+                <button style={{
+                  background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)',
+                  padding: '6px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                }}>
+                  🏠 {lang === 'th' ? 'หน้าหลัก' : 'Home'}
+                </button>
+              </a>
             </div>
           </div>
 
           {/* ── Tabs ── */}
           <div style={{ display: 'flex', gap: '2px' }}>
             {([
-              { id: 'overview', label: '📊 Overview' },
-              { id: 'reports', label: '📈 Reports' },
-              { id: 'products', label: '📦 Products' },
-              { id: 'cash', label: '💵 Cash Control' },
-              { id: 'attendance', label: '📋 Attendance' },
-              { id: 'settings', label: '⚙️ Settings' },
-            ] as const).map(t => (
-              <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+              { id: 'overview', label: t.overview },
+              { id: 'reports', label: t.reports },
+              { id: 'cash', label: t.cash },
+              { id: 'attendance', label: t.attendance },
+            ] as const).map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
                 padding: '10px 20px', border: 'none', cursor: 'pointer',
-                background: activeTab === t.id ? 'white' : 'transparent',
-                color: activeTab === t.id ? 'var(--coffee-dark)' : 'rgba(255,255,255,0.65)',
-                fontWeight: activeTab === t.id ? '700' : '500',
+                background: activeTab === tab.id ? 'white' : 'transparent',
+                color: activeTab === tab.id ? 'var(--coffee-dark)' : 'rgba(255,255,255,0.65)',
+                fontWeight: activeTab === tab.id ? '700' : '500',
                 fontSize: '14px', borderRadius: '10px 10px 0 0',
                 transition: 'all 0.2s',
-              }}>{t.label}</button>
+              }}>{tab.label}</button>
             ))}
           </div>
         </div>
@@ -258,7 +303,7 @@ export default function DashboardPage() {
         {loading && (
           <div style={{ textAlign: 'center', padding: '60px', color: 'var(--coffee-light)' }}>
             <RefreshCw size={36} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px' }} />
-            <p>Loading analytics...</p>
+            <p>{t.loading}</p>
           </div>
         )}
 
@@ -266,18 +311,20 @@ export default function DashboardPage() {
           <div>
             {/* KPI Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-              <KPICard icon={<TrendingUp size={22} />} label="Total Revenue" value={`${currency}${a.totalRevenue.toLocaleString()}`} sub={`Paid ${currency}${a.paidRevenue.toLocaleString()}`} accent="#d4af37" />
-              <KPICard icon={<Coffee size={22} />} label="Orders Total" value={a.totalOrders.toString()} sub={`Avg ${currency}${a.avgOrderValue}/order`} accent="#60a5fa" />
-              <KPICard icon={<Users size={22} />} label="Staff Active" value={activeNow.toString()} sub={`${Object.keys(summary).length} in period`} accent="#34d399" />
-              <KPICard icon={<Clock size={22} />} label="Work Hours" value={totalWorkHours.toFixed(1)} sub="This period" accent="#f472b6" />
+              <KPICard icon={<TrendingUp size={22} />} label={t.totalRevenue} value={`${currency}${a.totalRevenue.toLocaleString()}`} sub={`${t.paid} ${currency}${a.paidRevenue.toLocaleString()}`} accent="#d4af37" />
+              <KPICard icon={<Coffee size={22} />} label={t.ordersTotal} value={a.totalOrders.toString()} sub={`${t.avgOrder} ${currency}${a.avgOrderValue}${t.perOrder}`} accent="#60a5fa" />
+              <KPICard icon={<Users size={22} />} label={t.staffActive} value={activeNow.toString()} sub={`${Object.keys(summary).length} ${t.inPeriod}`} accent="#34d399" />
+              <KPICard icon={<Clock size={22} />} label={t.workHours} value={totalWorkHours.toFixed(1)} sub={t.thisPeriod} accent="#f472b6" />
             </div>
 
             {/* Quick Insights row */}
             {a.insights.length > 0 && (
               <div style={{ marginBottom: '28px' }}>
-                <SectionTitle icon="✨" title="Quick Insights" />
+                <SectionTitle icon="✨" title={t.quickInsights} />
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
                   {a.insights.map((ins, i) => {
+                    // map insight types to proper texts if possible..
+                    // We'll trust the insights AI to send localized text, or simply use as is since it's an alert
                     const c = insightColors[ins.type]
                     return (
                       <div key={i} style={{
@@ -301,9 +348,9 @@ export default function DashboardPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
               {/* Top Items */}
               <div className="card" style={{ padding: '20px' }}>
-                <SectionTitle icon="🔥" title="Top Selling Items" />
+                <SectionTitle icon="🔥" title={t.topItems} />
                 {a.topItems.length === 0
-                  ? <EmptyState text="No data yet" />
+                  ? <EmptyState text={t.noData} />
                   : a.topItems.map((item, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                       <div style={{
@@ -323,7 +370,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontWeight: '800', fontSize: '14px', color: 'var(--coffee-dark)' }}>{item.sold} แก้ว</p>
+                        <p style={{ fontWeight: '800', fontSize: '14px', color: 'var(--coffee-dark)' }}>{item.sold} {t.cups}</p>
                         <p style={{ fontSize: '11px', color: 'var(--coffee-light)' }}>{currency}{item.revenue}</p>
                       </div>
                     </div>
@@ -333,17 +380,19 @@ export default function DashboardPage() {
 
               {/* Payment types */}
               <div className="card" style={{ padding: '20px' }}>
-                <SectionTitle icon="💳" title="Payment Breakdown" />
+                <SectionTitle icon="💳" title={t.paymentBreakdown} />
                 {Object.keys(a.paymentBreakdown).length === 0
-                  ? <EmptyState text="No payment data" />
+                  ? <EmptyState text={t.noPaymentData} />
                   : Object.entries(a.paymentBreakdown).map(([type, data]) => {
+                    const typeLabelMap: Record<string, string> = { cash: t.cashPay, transfer: t.transferPay, promptpay: t.promptpayPay, unknown: t.unknownPay }
+                    const label = typeLabelMap[type] || type
                     const icons: Record<string, string> = { cash: '💵', transfer: '🏦', promptpay: '📲', unknown: '❓' }
                     const pct = a.totalOrders > 0 ? Math.round((data.count / a.totalOrders) * 100) : 0
                     return (
                       <div key={type} style={{ marginBottom: '14px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                           <span style={{ fontWeight: '700', fontSize: '14px', textTransform: 'capitalize' }}>
-                            {icons[type] || '💳'} {type}
+                            {icons[type] || '💳'} {label}
                           </span>
                           <span style={{ fontSize: '13px', color: 'var(--coffee-light)' }}>{pct}% · {currency}{data.revenue}</span>
                         </div>
@@ -363,15 +412,15 @@ export default function DashboardPage() {
 
             {/* Employee summary */}
             <div className="card" style={{ padding: '20px' }}>
-              <SectionTitle icon="👥" title="Employee Summary" />
+              <SectionTitle icon="👥" title={t.employeeSummary} />
               {Object.keys(summary).length === 0
-                ? <EmptyState text="No attendance records for this period." />
+                ? <EmptyState text={t.noAttendanceData} />
                 : (
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr style={{ borderBottom: '2px solid #f0e8df' }}>
-                          {['Employee', 'Role', 'Sessions', 'Total Hours', 'Avg / Day'].map(h => (
+                          {[t.empName, t.empRole, t.empSessions, t.empTotalHours, t.empAvgDay].map(h => (
                             <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: '700', color: 'var(--coffee-light)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
                           ))}
                         </tr>
@@ -392,8 +441,8 @@ export default function DashboardPage() {
                             </td>
                             <td style={{ padding: '12px' }}><span style={{ background: '#f0f9f4', padding: '3px 8px', borderRadius: '6px', fontSize: '13px', color: 'var(--coffee-medium)', fontWeight: '600' }}>{emp.role}</span></td>
                             <td style={{ padding: '12px', fontWeight: '700' }}>{emp.sessions}</td>
-                            <td style={{ padding: '12px', fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)' }}>{emp.totalHours.toFixed(1)} hrs</td>
-                            <td style={{ padding: '12px', color: 'var(--coffee-light)' }}>{emp.sessions > 0 ? (emp.totalHours / emp.sessions).toFixed(1) : 0} hrs/day</td>
+                            <td style={{ padding: '12px', fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)' }}>{emp.totalHours.toFixed(1)} {t.hrsShorthand}</td>
+                            <td style={{ padding: '12px', color: 'var(--coffee-light)' }}>{emp.sessions > 0 ? (emp.totalHours / emp.sessions).toFixed(1) : 0} {t.hrsPerDay}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -421,16 +470,6 @@ export default function DashboardPage() {
           <ManagerAttendancePro />
         )}
 
-        {/* ── SETTINGS TAB ── */}
-        {!loading && activeTab === 'settings' && (
-          <GlobalSettingsManager />
-        )}
-
-        {/* ── PRODUCTS TAB ── */}
-        {!loading && activeTab === 'products' && (
-          <ProductManager />
-        )}
-
       </div>
     </div>
   )
@@ -445,6 +484,7 @@ function KPICard({ icon, label, value, sub, accent }: {
       background: 'white', borderRadius: '16px',
       padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
       borderTop: `4px solid ${accent}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+      minHeight: '130px', flex: 1
     }}>
       <div>
         <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--coffee-light)', marginBottom: '8px' }}>{label}</p>

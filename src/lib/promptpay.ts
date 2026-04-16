@@ -23,31 +23,49 @@ function pad(str: string): string {
 }
 
 export function generatePromptPayPayload(
-  phoneOrNationalId: string,
+  promptPayId: string,
   amount?: number
 ): string {
-  const isPhone = phoneOrNationalId.length <= 10
+  // Tag 00 - Payload Format Indicator (01)
+  const format = '000201'
+  // Tag 01 - Point of Initiation Method (11 = Static, 12 = Dynamic/amount)
+  const poi = (amount !== undefined && amount > 0) ? '010212' : '010211'
 
-  // Normalize phone: 0812345678 -> 0066812345678
-  let target = phoneOrNationalId
-  if (isPhone) {
-    target = '0066' + target.replace(/^0/, '')
+  // Normalize ID (Phone -> 13 chars, National ID -> 13 chars, eWallet -> 15 chars)
+  let refId = promptPayId.replace(/[^0-9]/g, '')
+  let botType = '01' // Phone
+  
+  if (refId.length >= 15) {
+    botType = '03' // E-Wallet
+  } else if (refId.length === 13) {
+    botType = '02' // National ID
+  } else {
+    // Phone
+    refId = '0066' + refId.replace(/^0/, '') // e.g. 0066812345678
   }
 
-  const guidanceTag = isPhone ? '01' : '02'
+  // Tag 29 - Merchant Account Info
+  const botId = '0016A000000677010111'
+  const subTag = botType + pad(refId)
+  const tag29Data = botId + subTag
+  const tag29 = '29' + pad(tag29Data)
 
-  const merchantAccount =
-    '0016A000000677010111' + pad(guidanceTag + pad(target))
-  let payload = '000201' + pad(merchantAccount) + '5303764'
+  // Tag 58 - Country
+  const country = '5802TH'
+  // Tag 53 - Currency (THB = 764)
+  const currency = '5303764'
 
+  let payload = format + poi + tag29 + country + currency
+
+  // Tag 54 - Transaction Amount
   if (amount !== undefined && amount > 0) {
-    const amountStr = amount.toFixed(2)
-    payload += '54' + pad(amountStr)
+    const amtStr = amount.toFixed(2)
+    payload += '54' + pad(amtStr)
   }
 
-  payload += '5802TH6304'
+  // Tag 63 - Checksum (4 chars string appended after 6304)
+  payload += '6304'
   const checksum = crc16(payload)
-  payload += checksum
 
-  return payload
+  return payload + checksum
 }

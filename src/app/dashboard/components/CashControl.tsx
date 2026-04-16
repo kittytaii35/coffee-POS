@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { Wallet, Settings, AlertTriangle, ArrowRight, Loader2, CheckCircle } from 'lucide-react'
 import { useSettings } from '@/context/SettingsContext'
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
 
 interface Shift {
   id: string
@@ -18,6 +20,9 @@ interface Shift {
 }
 
 export default function CashControl() {
+  const { lang } = useLanguage()
+  const t = translations[lang].cashControl
+
   const [currentShift, setCurrentShift] = useState<Shift | null>(null)
   const [history, setHistory] = useState<Shift[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,7 +58,7 @@ export default function CashControl() {
   }, [])
 
   const handleStartShift = async () => {
-    if (!openingCash || !userId) return alert('Enter User ID and Opening Cash')
+    if (!openingCash || !userId) return alert(t.enterUserIdCash)
     setStarting(true)
     try {
       const res = await fetch('/api/shift/start', {
@@ -75,7 +80,7 @@ export default function CashControl() {
   }
 
   const handleEndShift = async () => {
-    if (!actualCash) return alert('Enter Actual Cash in Drawer')
+    if (!actualCash) return alert(t.enterActualCash)
     setEnding(true)
     try {
       const res = await fetch('/api/shift/end', {
@@ -86,7 +91,7 @@ export default function CashControl() {
       const data = await res.json()
       if (res.ok) {
         setActualCash('')
-        alert(`Shift ended. Difference: ${currency}${data.shift?.difference?.toFixed(2)}`)
+        alert(`${t.shiftEndedDiff} ${currency}${data.shift?.difference?.toFixed(2)}`)
         await loadData()
       } else {
         alert(data.error)
@@ -96,7 +101,7 @@ export default function CashControl() {
     }
   }
 
-  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading Cash Management...</div>
+  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>{t.loading}</div>
 
   return (
     <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -106,23 +111,23 @@ export default function CashControl() {
         {/* Active Shift Component */}
         <div style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e5e7eb' }}>
           <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Wallet /> Shift Management
+            <Wallet /> {t.shiftAction}
           </h3>
           
           {!currentShift ? (
             <div>
               <div style={{ padding: '16px', background: '#eff6ff', borderRadius: '12px', border: '1px solid #bfdbfe', marginBottom: '20px' }}>
-                <p style={{ fontWeight: '700', color: '#1e3a8a', fontSize: '14px' }}>No Active Shift</p>
-                <p style={{ color: '#3b82f6', fontSize: '13px' }}>Start a shift to begin recording cash transactions.</p>
+                <p style={{ fontWeight: '700', color: '#1e3a8a', fontSize: '14px' }}>{t.noActiveShift}</p>
+                <p style={{ color: '#3b82f6', fontSize: '13px' }}>{t.startShiftDesc}</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
                 <input 
-                  type="text" placeholder="Employee UUID" value={userId} 
+                  type="text" placeholder={t.empUuid} value={userId} 
                   onChange={e => setUserId(e.target.value)}
                   style={inputStyle}
                 />
                 <input 
-                  type="number" placeholder={`Opening Cash (${currency})`} value={openingCash} 
+                  type="number" placeholder={`${t.openingCash} (${currency})`} value={openingCash} 
                   onChange={e => setOpeningCash(e.target.value)}
                   style={inputStyle}
                 />
@@ -131,7 +136,7 @@ export default function CashControl() {
                 onClick={handleStartShift} disabled={starting}
                 style={{ width: '100%', background: '#16a34a', color: 'white', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: '700', fontSize: '15px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' }}
               >
-                {starting ? <Loader2 className="spin" size={18} /> : 'Start Shift'}
+                {starting ? <Loader2 className="spin" size={18} /> : t.startShift}
               </button>
             </div>
           ) : (
@@ -139,17 +144,17 @@ export default function CashControl() {
               <div style={{ padding: '16px', background: '#fdf4ff', borderRadius: '12px', border: '1px solid #fbcfe8', marginBottom: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                   <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#d946ef', animation: 'pulse-glow 2s infinite' }} />
-                  <p style={{ fontWeight: '800', color: '#a21caf', fontSize: '15px' }}>Shift is Active</p>
+                  <p style={{ fontWeight: '800', color: '#a21caf', fontSize: '15px' }}>{t.shiftIsActive}</p>
                 </div>
-                <p style={{ fontSize: '13px', color: '#86198f', marginBottom: '4px' }}>Started by: {currentShift.employees?.name || currentShift.user_id}</p>
-                <p style={{ fontSize: '13px', color: '#86198f', marginBottom: '4px' }}>Time: {new Date(currentShift.start_time).toLocaleString('th-TH')}</p>
-                <p style={{ fontSize: '13px', color: '#86198f', fontWeight: '800' }}>Opening Cash: {currency}{currentShift.opening_cash.toLocaleString()}</p>
+                <p style={{ fontSize: '13px', color: '#86198f', marginBottom: '4px' }}>{t.startedBy} {currentShift.employees?.name || currentShift.user_id}</p>
+                <p style={{ fontSize: '13px', color: '#86198f', marginBottom: '4px' }}>{t.time} {new Date(currentShift.start_time).toLocaleString('th-TH')}</p>
+                <p style={{ fontSize: '13px', color: '#86198f', fontWeight: '800' }}>{t.openingCash}: {currency}{currentShift.opening_cash.toLocaleString()}</p>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-                <p style={{ fontSize: '13px', fontWeight: '600' }}>To close the shift, count the physical cash in the drawer:</p>
+                <p style={{ fontSize: '13px', fontWeight: '600' }}>{t.closeShiftDesc}</p>
                 <input 
-                  type="number" placeholder={`Actual Cash in Drawer (${currency})`} value={actualCash} 
+                  type="number" placeholder={`${t.actualCashDraw} (${currency})`} value={actualCash} 
                   onChange={e => setActualCash(e.target.value)}
                   style={inputStyle}
                 />
@@ -159,7 +164,7 @@ export default function CashControl() {
                 onClick={handleEndShift} disabled={ending}
                 style={{ width: '100%', background: '#ef4444', color: 'white', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: '700', fontSize: '15px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' }}
               >
-                {ending ? <Loader2 className="spin" size={18} /> : 'End Shift'}
+                {ending ? <Loader2 className="spin" size={18} /> : t.endShift}
               </button>
             </div>
           )}
@@ -169,13 +174,13 @@ export default function CashControl() {
       {/* RIGHT COLUMN: Shift History */}
       <div style={{ flex: '2 1 500px', background: 'white', borderRadius: '16px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
         <div style={{ padding: '20px', borderBottom: '1px solid #e5e7eb' }}>
-           <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#111827' }}>Shift History</h3>
+           <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#111827' }}>{t.shiftHistory}</h3>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
               <tr>
-                {['User', 'Start', 'End', 'Opening', 'Expected', 'Actual', 'Diff', 'Status'].map(h => (
+                {[t.user, t.start, t.end, t.opening, t.expected, t.actual, t.diff, t.status].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#6b7280', fontWeight: '700' }}>{h}</th>
                 ))}
               </tr>
@@ -204,7 +209,7 @@ export default function CashControl() {
               })}
             </tbody>
           </table>
-          {history.length === 0 && <p style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>No shift history found.</p>}
+          {history.length === 0 && <p style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>{t.noHistory}</p>}
         </div>
       </div>
     </div>

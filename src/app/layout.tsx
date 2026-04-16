@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { SettingsProvider } from '@/context/SettingsContext'
 
+import { LanguageProvider } from '@/context/LanguageContext'
+
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
@@ -18,9 +20,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <SettingsProvider>
-          {children}
-        </SettingsProvider>
+        <LanguageProvider>
+          <SettingsProvider>
+            {children}
+          </SettingsProvider>
+        </LanguageProvider>
       </body>
     </html>
   )

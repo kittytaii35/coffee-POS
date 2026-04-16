@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { SWEETNESS_OPTIONS } from '@/lib/menu'
 import { ShoppingCart, Plus, Minus, X, ChevronRight, CheckCircle, Loader2, Coffee } from 'lucide-react'
 import { useSettings } from '@/context/SettingsContext'
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
 
 interface CartItem {
   id: string
@@ -18,56 +20,10 @@ interface CartItem {
 
 type Step = 'menu' | 'cart' | 'info' | 'success'
 
-const T = {
-  th: {
-    cartTitle: 'รถเข็นของคุณ',
-    items: 'รายการ',
-    subtotal: 'ยอดรวม',
-    total: 'ยอดสุทธิ',
-    continue: 'ดำเนินการต่อ',
-    details: 'ข้อมูลของคุณ',
-    nameLabel: 'ชื่อของคุณ *',
-    namePH: 'พิมพ์ชื่อของคุณ...',
-    summary: 'สรุปการสั่งซื้อ',
-    orderBtn: 'สั่งเลย',
-    placed: 'สั่งซื้อสำเร็จ!',
-    placedMsg: 'ได้รับรายการแล้ว กรุณารอ 5-10 นาที',
-    orderId: 'หมายเลขคิว',
-    notify: 'เราจะเรียกชื่อเมื่อเครื่องดื่มพร้อม!',
-    orderAgain: 'สั่งใหม่',
-    swLevel: 'ระดับความหวาน',
-    addons: 'เพิ่มท็อปปิ้ง',
-    addCart: 'เพิ่มลงตะกร้า',
-    lang: 'EN',
-    placing: 'กำลังสั่ง...'
-  },
-  en: {
-    cartTitle: 'Your Cart',
-    items: 'items',
-    subtotal: 'Subtotal',
-    total: 'Total',
-    continue: 'Continue',
-    details: 'Your Details',
-    nameLabel: 'Your Name *',
-    namePH: 'Enter your name...',
-    summary: 'Order Summary',
-    orderBtn: 'Place Order',
-    placed: 'Order Placed!',
-    placedMsg: 'Order received. Please wait 5-10 minutes.',
-    orderId: 'Order ID',
-    notify: 'We\'ll notify you when your drink is ready!',
-    orderAgain: 'Order Again',
-    swLevel: 'Sweetness Level',
-    addons: 'Add-ons',
-    addCart: 'Add to Cart',
-    lang: 'ไทย',
-    placing: 'Placing order...'
-  }
-}
-
 export default function OrderPage() {
-  const [lang, setLang] = useState<'th' | 'en'>('th')
-  const t = T[lang]
+  const { lang, toggleLang } = useLanguage()
+  const t = translations[lang].order
+  const c = translations[lang].common
   const [activeCategory, setActiveCategory] = useState('all')
   const [cart, setCart] = useState<CartItem[]>([])
   const [step, setStep] = useState<Step>('menu')
@@ -81,6 +37,7 @@ export default function OrderPage() {
   const [submitting, setSubmitting] = useState(false)
   const [orderId, setOrderId] = useState('')
   const [currentTime, setCurrentTime] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   const { settings, loading: settingsLoading } = useSettings()
   const shopName = settings.receipt.header
@@ -247,8 +204,35 @@ export default function OrderPage() {
           </div>
           {step === 'menu' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button onClick={() => setLang(l => l === 'en' ? 'th' : 'en')} style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', padding: '8px 14px', borderRadius: '14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                🌍 {t.lang}
+              
+              {/* View Toggle */}
+              <div style={{ display: 'flex', background: 'rgba(255,255,255,0.1)', padding: '4px', borderRadius: '12px', gap: '2px' }}>
+                <button 
+                  onClick={() => setViewMode('grid')} 
+                  style={{
+                    padding: '6px 12px', borderRadius: '8px', border: 'none', fontSize: '12px', fontWeight: '700', cursor: 'pointer',
+                    background: viewMode === 'grid' ? 'white' : 'transparent',
+                    color: viewMode === 'grid' ? 'var(--coffee-dark)' : 'rgba(255,255,255,0.7)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Grid
+                </button>
+                <button 
+                  onClick={() => setViewMode('list')} 
+                  style={{
+                    padding: '6px 12px', borderRadius: '8px', border: 'none', fontSize: '12px', fontWeight: '700', cursor: 'pointer',
+                    background: viewMode === 'list' ? 'white' : 'transparent',
+                    color: viewMode === 'list' ? 'var(--coffee-dark)' : 'rgba(255,255,255,0.7)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  List
+                </button>
+              </div>
+
+              <button onClick={toggleLang} style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', padding: '8px 14px', borderRadius: '14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {c.langToggle}
               </button>
               {cartCount > 0 && (
                 <button
@@ -294,7 +278,7 @@ export default function OrderPage() {
               >
                 👑 {lang === 'th' ? 'ทั้งหมด' : 'All'}
               </button>
-            {categories.map(cat => (
+            {categories.filter(c => c.id !== 'all').map(cat => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
@@ -324,7 +308,7 @@ export default function OrderPage() {
                 <Loader2 size={40} className="spin" style={{ margin: '0 auto 16px' }} />
                 <p>Loading menu...</p>
              </div>
-          ) : (
+          ) : viewMode === 'grid' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
               {filteredMenu.map(item => (
                 <div key={item.id} className="menu-card" onClick={() => openItemModal(item)}>
@@ -357,6 +341,43 @@ export default function OrderPage() {
                         <Plus size={16} color="white" />
                       </div>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* List View for Order Page */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {filteredMenu.map(item => (
+                <div 
+                  key={item.id} 
+                  className="card" 
+                  onClick={() => openItemModal(item)}
+                  style={{ 
+                    padding: '12px', display: 'flex', alignItems: 'center', gap: '16px', 
+                    cursor: 'pointer', transition: 'transform 0.1s' 
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <div style={{
+                    width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0,
+                    background: '#f9f5f0', border: '1px solid #e8d5c4'
+                  }}>
+                    {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Coffee size={24} style={{ margin: '28px' }} color="#d1d5db" />}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                     <h4 style={{ fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)' }}>{lang === 'th' ? item.name_th : item.name}</h4>
+                     <p style={{ fontSize: '12px', color: 'var(--coffee-light)' }}>{lang === 'th' ? item.name : item.name_th}</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                     <p style={{ fontWeight: '900', fontSize: '18px', color: 'var(--gold)' }}>฿{item.price}</p>
+                     <div style={{
+                        marginTop: '4px', padding: '4px 10px', background: 'var(--coffee-medium)', color: 'white',
+                        borderRadius: '20px', fontSize: '11px', fontWeight: '700', display: 'inline-block'
+                     }}>
+                        {lang === 'th' ? 'สั่งเลย' : 'Order'}
+                     </div>
                   </div>
                 </div>
               ))}
@@ -599,13 +620,13 @@ export default function OrderPage() {
               <div style={{ marginBottom: '20px' }}>
                 <p style={{ fontWeight: '700', marginBottom: '10px' }}>{t.addons}</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {selectedItem.toppings.map(top => {
+                  {selectedItem.toppings.map((top: string) => {
                     const active = selectedToppings.includes(top)
                     return (
                       <button
                         key={top}
                         onClick={() => setSelectedToppings(prev =>
-                          active ? prev.filter(t => t !== top) : [...prev, top]
+                          active ? prev.filter((t: string) => t !== top) : [...prev, top]
                         )}
                         style={{
                           padding: '8px 14px', borderRadius: '20px', border: '2px solid',

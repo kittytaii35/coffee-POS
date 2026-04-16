@@ -1,8 +1,71 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Eye, EyeOff, Loader2, X, ShieldAlert } from 'lucide-react'
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
+
+const PROTECTED_ROUTES = ['/dashboard', '/products', '/settings', '/employees']
 
 export default function HomePage() {
+  const { lang, toggleLang } = useLanguage()
+  const t = translations[lang]
+  const router = useRouter()
+
+  const [targetUrl, setTargetUrl] = useState<string | null>(null)
+  const [pin, setPin] = useState('')
+  const [showPin, setShowPin] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleNavClick = (e: React.MouseEvent, href: string) => {
+    if (PROTECTED_ROUTES.includes(href)) {
+      e.preventDefault()
+      setTargetUrl(href)
+      setPin('')
+      setError('')
+      setShowPin(false)
+    }
+  }
+
+  const handlePinSubmit = async () => {
+    if (pin.length !== 4) {
+      setError(lang === 'th' ? 'กรุณากรอก PIN 4 หลัก' : 'Please enter 4-digit PIN')
+      return
+    }
+    
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin_code: pin })
+      })
+      const data = await res.json()
+      
+      if (!res.ok || !data.success) {
+        setError(data.error || (lang === 'th' ? 'PIN ไม่ถูกต้อง' : 'Invalid PIN'))
+        setLoading(false)
+        return
+      }
+
+      const role = data.employee?.role
+      if (role === 'Manager' || role === 'Supervisor') {
+        // Success
+        router.push(targetUrl!)
+      } else {
+        setError(lang === 'th' ? 'ไม่มีสิทธิ์เข้าถึง (เฉพาะ Manager / Supervisor)' : 'Access denied (Manager / Supervisor only)')
+        setLoading(false)
+      }
+    } catch {
+      setError(lang === 'th' ? 'เกิดข้อผิดพลาดในการเชื่อมต่อ' : 'Connection error')
+      setLoading(false)
+    }
+  }
+
 
   return (
     <main
@@ -33,6 +96,18 @@ export default function HomePage() {
       }} />
 
       {/* Logo */}
+      <div className="absolute top-4 right-4 z-50">
+        <button 
+          onClick={toggleLang}
+          style={{
+            background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', 
+            padding: '8px 14px', borderRadius: '14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer'
+          }}
+        >
+          {t.common.langToggle}
+        </button>
+      </div>
+
       <div className="animate-fade-in" style={{ textAlign: 'center', marginBottom: '48px' }}>
         <div style={{
           fontSize: '72px', marginBottom: '8px',
@@ -44,10 +119,10 @@ export default function HomePage() {
           fontSize: '48px', fontWeight: '800', color: 'white',
           letterSpacing: '-1px', marginBottom: '8px',
         }}>
-          Queen Coffee
+          {t.home.title}
         </h1>
         <p style={{ color: 'rgba(245,230,211,0.7)', fontSize: '18px', fontWeight: '400' }}>
-          Coffee Shop Management System
+          {t.home.subtitle}
         </p>
       </div>
 
@@ -65,34 +140,65 @@ export default function HomePage() {
         <NavCard
           href="/order"
           emoji="📱"
-          title="Order"
-          subtitle="Customer ordering"
-          subtitle2="via LIFF / Web"
+          title={t.home.order}
+          subtitle={t.home.orderSub}
           accent="#d4af37"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
         />
         <NavCard
           href="/pos"
           emoji="🖥️"
-          title="POS System"
-          subtitle="Order management"
-          subtitle2="for staff & cashier"
+          title={t.home.pos}
+          subtitle={t.home.posSub}
           accent="#60a5fa"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
         />
         <NavCard
           href="/attendance"
           emoji="👤"
-          title="Attendance"
-          subtitle="Check-in / Check-out"
-          subtitle2="employee system"
+          title={t.home.attendance}
+          subtitle={t.home.attendanceSub}
           accent="#34d399"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
         />
         <NavCard
           href="/dashboard"
           emoji="📊"
-          title="Dashboard"
-          subtitle="Reports & analytics"
-          subtitle2="for managers"
+          title={t.home.dashboard}
+          subtitle={t.home.dashboardSub}
           accent="#f472b6"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
+        />
+        <NavCard
+          href="/products"
+          emoji="📦"
+          title={t.home.products}
+          subtitle={t.home.productsSub}
+          accent="#ffb142"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
+        />
+        <NavCard
+          href="/settings"
+          emoji="⚙️"
+          title={t.home.settings}
+          subtitle={t.home.settingsSub}
+          accent="#9ca3af"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
+        />
+        <NavCard
+          href="/employees"
+          emoji="👥"
+          title={t.home.employees}
+          subtitle={t.home.employeesSub}
+          accent="#a78bfa"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
         />
       </div>
 
@@ -102,6 +208,100 @@ export default function HomePage() {
       }}>
         Queen Coffee POS v1.0 · Built with Next.js & Supabase
       </p>
+
+      {/* PIN LOCK MODAL */}
+      {targetUrl && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }} onClick={() => setTargetUrl(null)}>
+          <div className="animate-slide-up" style={{
+            background: 'white', borderRadius: '28px', padding: '32px',
+            width: '100%', maxWidth: '340px', textAlign: 'center',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.4)', position: 'relative'
+          }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setTargetUrl(null)} style={{
+              position: 'absolute', top: '16px', right: '16px',
+              width: '32px', height: '32px', borderRadius: '50%',
+              border: '1.5px solid #e8d5c4', background: '#fdf6f0',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--coffee-medium)',
+            }}>
+              <X size={16} />
+            </button>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '50%',
+              background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <ShieldAlert size={28} color="#dc2626" />
+            </div>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--coffee-dark)', marginBottom: '8px' }}>
+              {lang === 'th' ? 'จำกัดสิทธิ์เข้าถึง' : 'Access Restricted'}
+            </h2>
+            <p style={{ color: 'var(--coffee-light)', fontSize: '13px', marginBottom: '24px', lineHeight: '1.5' }}>
+              {lang === 'th' 
+                ? 'ส่วนนี้เข้าถึงได้เฉพาะ Manager / Supervisor. กรุณากรอกรหัส PIN ของท่าน'
+                : 'This section requires Manager / Supervisor access. Please enter your PIN.'}
+            </p>
+
+            <div style={{ position: 'relative', marginBottom: '24px' }}>
+              <input
+                type={showPin ? 'text' : 'password'}
+                inputMode="numeric"
+                maxLength={4}
+                value={pin}
+                onChange={e => {
+                  setPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                  setError('')
+                }}
+                onKeyDown={e => e.key === 'Enter' && handlePinSubmit()}
+                placeholder="••••"
+                style={{
+                  width: '100%', padding: '16px', borderRadius: '16px',
+                  border: '2px solid #e8d5c4', background: '#fdf6f0',
+                  fontSize: '28px', letterSpacing: '12px', textAlign: 'center',
+                  outline: 'none', color: 'var(--coffee-dark)', fontWeight: '800'
+                }}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPin(v => !v)}
+                style={{
+                  position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--coffee-light)',
+                }}
+              >
+                {showPin ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+
+            {error && (
+              <div className="animate-shake" style={{ background: '#fef2f2', color: '#dc2626', padding: '10px', borderRadius: '12px', fontSize: '13px', fontWeight: '700', marginBottom: '16px' }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              onClick={handlePinSubmit}
+              disabled={loading || pin.length !== 4}
+              style={{
+                width: '100%', padding: '16px', borderRadius: '16px',
+                background: 'linear-gradient(135deg, var(--coffee-dark), var(--coffee-brown))',
+                border: 'none', color: 'white', fontWeight: '800', fontSize: '16px',
+                cursor: (loading || pin.length !== 4) ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                opacity: (loading || pin.length !== 4) ? 0.7 : 1,
+                boxShadow: '0 8px 16px rgba(0,0,0,0.15)'
+              }}
+            >
+              {loading ? <Loader2 size={20} className="spin" /> : (lang === 'th' ? 'ยืนยันตัวตน' : 'Verify')}
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
@@ -111,18 +311,20 @@ function NavCard({
   emoji,
   title,
   subtitle,
-  subtitle2,
   accent,
+  openText,
+  onClick
 }: {
   href: string
   emoji: string
   title: string
   subtitle: string
-  subtitle2: string
   accent: string
+  openText: string
+  onClick: (e: React.MouseEvent, href: string) => void
 }) {
   return (
-    <Link href={href} style={{ textDecoration: 'none' }}>
+    <Link href={href} style={{ textDecoration: 'none' }} onClick={(e) => onClick(e, href)}>
       <div
         className="glass"
         style={{
@@ -134,6 +336,12 @@ function NavCard({
           border: `1px solid rgba(255,255,255,0.15)`,
           background: 'rgba(255,255,255,0.08)',
           backdropFilter: 'blur(20px)',
+          height: '100%',
+          minHeight: '280px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
         onMouseEnter={(e) => {
           const el = e.currentTarget
@@ -157,10 +365,8 @@ function NavCard({
         }}>
           {title}
         </h2>
-        <p style={{ color: 'rgba(245,230,211,0.65)', fontSize: '13px', lineHeight: '1.5' }}>
+        <p style={{ color: 'rgba(245,230,211,0.65)', fontSize: '13px', lineHeight: '1.5', minHeight: '38px' }}>
           {subtitle}
-          <br />
-          {subtitle2}
         </p>
         <div style={{
           marginTop: '16px',
@@ -173,7 +379,7 @@ function NavCard({
           fontWeight: '600',
           border: `1px solid ${accent}40`,
         }}>
-          Open →
+          {openText}
         </div>
       </div>
     </Link>

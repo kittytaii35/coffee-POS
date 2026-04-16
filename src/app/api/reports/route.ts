@@ -21,6 +21,15 @@ export async function GET(req: NextRequest) {
       .select('*, employees(name)')
       .gte('check_in', thirtyDaysAgo)
 
+    // 3. Fetch Products for name_th translation mapping
+    const { data: dbProducts } = await supabase.from('products').select('name, name_th')
+    const productNames: Record<string, string> = {}
+    if (dbProducts) {
+      dbProducts.forEach(p => {
+        if (p.name) productNames[p.name] = p.name_th || p.name
+      })
+    }
+
     // Fallback Mock Data if tables are missing or not configured
     let baseOrders = orders || []
     if (oErr || !orders) {
@@ -46,7 +55,7 @@ export async function GET(req: NextRequest) {
 
     // ----- AGGREGATIONS -----
     const salesByDay: Record<string, number> = {}
-    const productSales: Record<string, { name: string, qty: number, revenue: number }> = {}
+    const productSales: Record<string, { name: string, name_th: string, qty: number, revenue: number }> = {}
     const paymentBreakdown = { cash: 0, transfer: 0, promptpay: 0, total: 0 }
     const peakHours: Record<number, number> = {}
 
@@ -68,9 +77,16 @@ export async function GET(req: NextRequest) {
 
       // Products
       for (const item of (o.items || [])) {
-        if (!productSales[item.id]) productSales[item.id] = { name: item.name, qty: 0, revenue: 0 }
-        productSales[item.id].qty += item.quantity
-        productSales[item.id].revenue += item.price * item.quantity
+        if (!productSales[item.name]) {
+          productSales[item.name] = { 
+            name: item.name, 
+            name_th: productNames[item.name] || item.name, // Link thai name
+            qty: 0, 
+            revenue: 0 
+          }
+        }
+        productSales[item.name].qty += item.quantity
+        productSales[item.name].revenue += item.price * item.quantity
       }
     }
 
@@ -87,13 +103,23 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => a.hour - b.hour)
 
     // Staff Aggregation
+    const nowTs = Date.now()
     const staffSummary: Record<string, { name: string, hours: number, shifts: number }> = {}
     for (const a of baseAttendance) {
       if (!staffSummary[a.employee_id]) {
         staffSummary[a.employee_id] = { name: a.employees?.name || 'Unknown', hours: 0, shifts: 0 }
       }
       staffSummary[a.employee_id].shifts += 1
-      staffSummary[a.employee_id].hours += a.work_hours || 0
+      
+      let sessionHours = a.work_hours || 0
+      
+      // If still working (no check_out), calculate live hours
+      if (!a.check_out && a.check_in) {
+        const start = new Date(a.check_in).getTime()
+        sessionHours = Math.max(0, (nowTs - start) / (1000 * 60 * 60))
+      }
+      
+      staffSummary[a.employee_id].hours += sessionHours
     }
 
     return NextResponse.json({

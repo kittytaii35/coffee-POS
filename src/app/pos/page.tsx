@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, Order, OrderStatus, PaymentType } from '@/lib/supabase'
-import { printReceiptBluetooth } from '@/lib/printer'
+import { printReceiptBluetooth, printReceiptBrowser, ReceiptData } from '@/lib/printer'
 import { generatePromptPayPayload } from '@/lib/promptpay'
 import {
   Clock, CheckCircle, AlertCircle,
@@ -11,6 +11,9 @@ import {
 } from 'lucide-react'
 import QRCode from 'qrcode'
 import { useSettings } from '@/context/SettingsContext'
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
+import { MENU_ITEMS } from '@/lib/menu'
 
 type Tab = 'orders' | 'new-order'
 
@@ -32,6 +35,10 @@ export default function POSPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
   const [currentTime, setCurrentTime] = useState('')
+
+  const { lang, toggleLang } = useLanguage()
+  const t = translations[lang].pos
+  const c = translations[lang].common
 
   const { settings, loading: settingsLoading } = useSettings()
   const vatRate = settings.pos.vat_rate
@@ -63,6 +70,11 @@ export default function POSPage() {
   useEffect(() => {
     fetchOrders()
 
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(() => {
+      fetchOrders()
+    }, 5 * 60 * 1000)
+
     // Supabase realtime subscription (only if configured)
     let channel: ReturnType<typeof supabase.channel> | null = null
     try {
@@ -75,6 +87,7 @@ export default function POSPage() {
     } catch { /* Realtime not available without valid Supabase config */ }
 
     return () => {
+      clearInterval(interval)
       if (channel) supabase.removeChannel(channel)
     }
   }, [fetchOrders])
@@ -96,35 +109,66 @@ export default function POSPage() {
 
   const handlePayment = async () => {
     if (!selectedOrder) return
+    const orderToPrint = { ...selectedOrder, payment_type: paymentType, paid: true, status: 'done' as OrderStatus }
     setUpdating(selectedOrder.id)
-    await fetch(`/api/orders`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: selectedOrder.id, payment_type: paymentType, paid: true, status: 'done' }),
-    })
-    await fetchOrders()
-    setShowPayment(false)
-    setSelectedOrder(null)
-    setUpdating(null)
+    try {
+      await fetch(`/api/orders`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedOrder.id, payment_type: paymentType, paid: true, status: 'done' }),
+      })
+      await fetchOrders()
+      
+      // Auto-print after payment
+      await printReceiptOS(orderToPrint)
+      
+      setShowPayment(false)
+      setSelectedOrder(null)
+    } finally {
+      setUpdating(null)
+    }
   }
 
-  const printReceipt = async (order: Order) => {
-    const result = await printReceiptBluetooth({
-      shopName: 'Queen Coffee',
-      orderId: order.id,
-      customerName: order.customer_name,
-      items: order.items.map(i => ({
+  const buildReceiptData = (order: Order): ReceiptData => ({
+    shopName: settings.receipt.header || 'Queen Coffee',
+    orderId: order.id,
+    customerName: order.customer_name,
+    items: order.items.map(i => {
+      const menuItem = MENU_ITEMS.find(m => m.name === i.name || m.name_th === i.name)
+      return {
         name: i.name,
+        name_th: i.name_th || menuItem?.name_th,
         quantity: i.quantity,
         price: i.price,
-      })),
-      total: order.total,
-      paymentType: order.payment_type || 'cash',
-      timestamp: new Date(order.created_at).toLocaleString('th-TH'),
-    })
-    if (!result.success) {
-      alert(`Print failed: ${result.error}`)
+      }
+    }),
+    total: order.total,
+    paymentType: order.payment_type || 'cash',
+    timestamp: new Date(order.created_at).toLocaleString('th-TH'),
+  })
+
+  // Browser / OS print (USB, Network) — default
+  const printReceiptOS = async (order: Order) => {
+    const data = buildReceiptData(order)
+    
+    // If it's promptpay, generate the QR to include in receipt
+    if (order.payment_type === 'promptpay') {
+      try {
+        const payload = generatePromptPayPayload(promptPayId || '0812345678', order.total)
+        data.qrCode = await QRCode.toDataURL(payload, { width: 256, margin: 1 })
+      } catch (e) {
+        console.error('QR generation for receipt failed', e)
+      }
     }
+
+    const result = printReceiptBrowser(data)
+    if (!result.success) alert(`Print failed: ${result.error}`)
+  }
+
+  // Bluetooth print (wireless thermal)
+  const printReceiptBT = async (order: Order) => {
+    const result = await printReceiptBluetooth(buildReceiptData(order))
+    if (!result.success) alert(`Bluetooth print failed: ${result.error}`)
   }
 
   const openPaymentModal = async (order: Order) => {
@@ -169,7 +213,7 @@ export default function POSPage() {
             <Coffee size={24} color="var(--gold)" />
             <h1 style={{ color: 'white', fontSize: '22px', fontWeight: '800' }}>Queen Coffee</h1>
           </div>
-          <p style={{ color: 'rgba(245,230,211,0.5)', fontSize: '12px' }}>POS System</p>
+          <p style={{ color: 'rgba(245,230,211,0.5)', fontSize: '12px' }}>{t.system}</p>
           <p style={{ color: 'var(--gold)', fontSize: '13px', fontWeight: '600', marginTop: '4px' }}>
             {currentTime}
           </p>
@@ -197,7 +241,7 @@ export default function POSPage() {
             background: 'rgba(212,168,83,0.15)', borderRadius: '12px',
             padding: '10px 14px', border: '1px solid rgba(212,168,83,0.3)',
           }}>
-            <p style={{ color: 'rgba(245,230,211,0.6)', fontSize: '11px', marginBottom: '2px' }}>Today&apos;s Revenue</p>
+            <p style={{ color: 'rgba(245,230,211,0.6)', fontSize: '11px', marginBottom: '2px' }}>{t.todayRev}</p>
             <p style={{ color: 'var(--gold)', fontWeight: '800', fontSize: '20px' }}>{currency}{stats.revenue}</p>
           </div>
         </div>
@@ -205,7 +249,7 @@ export default function POSPage() {
         {/* Filter Buttons */}
         <div style={{ flex: 1 }}>
           <p style={{ color: 'rgba(245,230,211,0.4)', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', marginBottom: '8px' }}>
-            FILTER
+            {t.filter}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {(['all', 'pending', 'making', 'done'] as const).map(s => (
@@ -217,23 +261,35 @@ export default function POSPage() {
                 cursor: 'pointer', textAlign: 'left', fontSize: '14px',
                 transition: 'all 0.2s ease',
               }}>
-                {s === 'all' ? '📋 All Orders' : `${STATUS_CONFIG[s].emoji} ${STATUS_CONFIG[s].label}`}
+                {s === 'all' ? `📋 ${t.allOrders}` : `${STATUS_CONFIG[s].emoji} ${t.status[s as keyof typeof t.status]}`}
               </button>
             ))}
           </div>
         </div>
 
-        <button
-          onClick={fetchOrders}
-          style={{
-            padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)',
-            background: 'rgba(255,255,255,0.06)', color: 'rgba(245,230,211,0.7)',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
-            fontSize: '14px', width: '100%',
-          }}
-        >
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <a href="/" style={{ flex: 1, textDecoration: 'none' }}>
+            <button style={{
+              padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.06)', color: 'rgba(245,230,211,0.7)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              fontSize: '14px', width: '100%',
+            }}>
+              🏠 {lang === 'th' ? 'หน้าหลัก' : 'Home'}
+            </button>
+          </a>
+          <button
+            onClick={fetchOrders}
+            style={{
+              padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.06)', color: 'rgba(245,230,211,0.7)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              fontSize: '14px', flex: 1,
+            }}
+          >
+            <RefreshCw size={14} /> {t.refresh}
+          </button>
+        </div>
       </div>
 
       {/* Main area */}
@@ -245,7 +301,7 @@ export default function POSPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--coffee-dark)' }}>
-            Orders · {filteredOrders.length}
+            {t.orders} · {filteredOrders.length}
           </h2>
           <div style={{ display: 'flex', gap: '8px' }}>
             <a href="/order" target="_blank" style={{ textDecoration: 'none' }}>
@@ -254,9 +310,16 @@ export default function POSPage() {
                 background: 'white', cursor: 'pointer', fontSize: '13px',
                 fontWeight: '600', color: 'var(--coffee-medium)', display: 'flex', alignItems: 'center', gap: '6px'
               }}>
-                <Package size={14} /> Customer Order
+                <Package size={14} /> {t.customerOrder}
               </button>
             </a>
+            <button onClick={toggleLang} style={{
+              padding: '8px 14px', borderRadius: '10px', border: '2px solid #e8d5c4',
+              background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '700',
+              color: 'var(--coffee-medium)'
+            }}>
+              {c.langToggle}
+            </button>
           </div>
         </div>
 
@@ -270,13 +333,13 @@ export default function POSPage() {
           {loading ? (
             <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', color: 'var(--coffee-light)' }}>
               <Coffee size={48} style={{ margin: '0 auto 16px', opacity: 0.4 }} />
-              <p style={{ fontSize: '16px' }}>Loading orders...</p>
+              <p style={{ fontSize: '16px' }}>{t.loading}</p>
             </div>
           ) : filteredOrders.length === 0 ? (
             <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', color: 'var(--coffee-light)' }}>
               <Coffee size={48} style={{ margin: '0 auto 16px', opacity: 0.3 }} />
-              <p style={{ fontSize: '18px', fontWeight: '600' }}>No orders yet</p>
-              <p style={{ fontSize: '14px', marginTop: '4px', opacity: 0.7 }}>Orders will appear here in real-time</p>
+              <p style={{ fontSize: '18px', fontWeight: '600' }}>{t.noOrders}</p>
+              <p style={{ fontSize: '14px', marginTop: '4px', opacity: 0.7 }}>{t.noOrdersSub}</p>
             </div>
           ) : filteredOrders.map(order => (
             <OrderCard
@@ -287,8 +350,11 @@ export default function POSPage() {
               selected={selectedOrder?.id === order.id}
               onUpdateStatus={updateOrderStatus}
               onPay={() => openPaymentModal(order)}
-              onPrint={() => printReceipt(order)}
+              onPrintOS={() => printReceiptOS(order)}
+              onPrintBT={() => printReceiptBT(order)}
               currency={currency}
+              t={t}
+              c={c}
             />
           ))}
         </div>
@@ -313,22 +379,22 @@ export default function POSPage() {
               width: '100%', maxWidth: '440px',
             }}
           >
-            <h3 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '4px' }}>Payment</h3>
+            <h3 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '4px' }}>{t.payment}</h3>
             <p style={{ color: 'var(--coffee-light)', fontSize: '14px', marginBottom: '20px' }}>
-              Order #{selectedOrder.id.slice(-8).toUpperCase()} · {selectedOrder.customer_name}
+              {t.orders} #{selectedOrder.id.slice(-8).toUpperCase()} · {selectedOrder.customer_name}
             </p>
 
             <div style={{
               background: '#fdf6f0', borderRadius: '16px', padding: '20px',
               marginBottom: '20px', textAlign: 'center',
             }}>
-              <p style={{ color: 'var(--coffee-light)', fontSize: '14px' }}>Total Amount</p>
+              <p style={{ color: 'var(--coffee-light)', fontSize: '14px' }}>{t.totalAmount}</p>
               <p style={{ fontSize: '40px', fontWeight: '900', color: 'var(--coffee-dark)', lineHeight: 1.1 }}>
                 {currency}{selectedOrder.total}
               </p>
             </div>
 
-            <p style={{ fontWeight: '700', marginBottom: '12px' }}>Payment Method</p>
+            <p style={{ fontWeight: '700', marginBottom: '12px' }}>{t.paymentMethod}</p>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
               {[
                 { type: 'cash' as PaymentType, icon: <Banknote size={20} />, label: 'Cash' },
@@ -359,7 +425,7 @@ export default function POSPage() {
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <img src={qrDataUrl} alt="PromptPay QR" style={{ width: '200px', height: '200px', margin: '0 auto' }} />
                 <p style={{ fontSize: '12px', color: 'var(--coffee-light)', marginTop: '8px' }}>
-                  Scan with banking app
+                  {t.scanQr}
                 </p>
               </div>
             )}
@@ -373,7 +439,7 @@ export default function POSPage() {
                   cursor: 'pointer', fontWeight: '600', color: 'var(--coffee-light)',
                 }}
               >
-                Cancel
+                {c.cancel}
               </button>
               <button
                 className="btn-gold"
@@ -382,7 +448,7 @@ export default function POSPage() {
                 disabled={!!updating || settingsLoading}
               >
                 <CheckCircle size={18} style={{ display: 'inline', marginRight: '6px' }} />
-                Confirm Payment ({currency}{selectedOrder.total})
+                {t.confirmPay} ({currency}{selectedOrder.total})
               </button>
             </div>
           </div>
@@ -393,7 +459,7 @@ export default function POSPage() {
 }
 
 function OrderCard({
-  order, updating, selected, onSelect, onUpdateStatus, onPay, onPrint, currency
+  order, updating, selected, onSelect, onUpdateStatus, onPay, onPrintOS, onPrintBT, currency, t, c
 }: {
   order: Order
   updating: boolean
@@ -401,9 +467,13 @@ function OrderCard({
   onSelect: () => void
   onUpdateStatus: (id: string, status: OrderStatus) => void
   onPay: () => void
-  onPrint: () => void
+  onPrintOS: () => void
+  onPrintBT: () => void
   currency: string
+  t: any
+  c: any
 }) {
+  const [showPrintMenu, setShowPrintMenu] = useState(false)
   const config = STATUS_CONFIG[order.status]
   const timeSince = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
 
@@ -433,29 +503,37 @@ function OrderCard({
               display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '700',
               background: config.bg, color: config.color,
             }}>
-              {config.emoji} {config.label}
+              {config.emoji} {t.status[order.status]}
             </span>
             <p style={{ fontSize: '11px', color: 'var(--coffee-light)', marginTop: '4px' }}>
               <Clock size={10} style={{ display: 'inline', marginRight: '3px' }} />
-              {timeSince < 1 ? 'just now' : `${timeSince}m ago`}
+              {timeSince < 1 ? t.justNow : `${timeSince}${t.mAgo}`}
             </p>
           </div>
         </div>
 
         {/* Items */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {order.items.map((item, i) => (
-            <div key={i} style={{
-              display: 'flex', justifyContent: 'space-between',
-              fontSize: '13px', color: 'var(--coffee-medium)',
-            }}>
-              <span>
-                {item.name} x{item.quantity}
-                {item.sweetness ? ` (${item.sweetness}%)` : ''}
-              </span>
-              <span style={{ fontWeight: '600' }}>{currency}{item.price * item.quantity}</span>
-            </div>
-          ))}
+          {order.items.map((item, i) => {
+            const menuItem = MENU_ITEMS.find(m => m.name === item.name || m.name_th === item.name)
+            const nameTh = item.name_th || menuItem?.name_th
+            return (
+              <div key={i} style={{
+                display: 'flex', justifyContent: 'space-between',
+                fontSize: '13px', color: 'var(--coffee-medium)',
+                marginBottom: nameTh ? '4px' : '0'
+              }}>
+                <span style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontWeight: '600' }}>
+                    {item.name} x{item.quantity}
+                    {item.sweetness ? ` (${item.sweetness}%)` : ''}
+                  </span>
+                  {nameTh && <span style={{ fontSize: '11px', opacity: 0.8 }}>{nameTh}</span>}
+                </span>
+                <span style={{ fontWeight: '600', alignSelf: 'flex-start' }}>{currency}{item.price * item.quantity}</span>
+              </div>
+            )
+          })}
         </div>
 
         <div style={{
@@ -463,7 +541,7 @@ function OrderCard({
           borderTop: '1px solid #f0e8df', marginTop: '10px', paddingTop: '8px',
         }}>
           <span style={{ fontSize: '14px', color: 'var(--coffee-light)' }}>
-            {order.paid ? '✅ Paid' : '💳 Unpaid'}
+            {order.paid ? `✅ ${t.paid}` : `💳 ${t.unpaid}`}
             {order.payment_type ? ` · ${order.payment_type}` : ''}
           </span>
           <span style={{ fontWeight: '800', color: 'var(--coffee-dark)', fontSize: '16px' }}>
@@ -480,36 +558,72 @@ function OrderCard({
       }} onClick={e => e.stopPropagation()}>
         {order.status === 'pending' && (
           <ActionButton
-            color="#3b82f6" label="▶ Start Making"
+            color="#3b82f6" label={t.startMaking}
             onClick={() => onUpdateStatus(order.id, 'making')}
             icon={<ChefHat size={14} />}
           />
         )}
         {order.status === 'making' && (
           <ActionButton
-            color="#22c55e" label="✓ Mark Done"
+            color="#22c55e" label={t.markDone}
             onClick={() => onUpdateStatus(order.id, 'done')}
             icon={<CheckCircle size={14} />}
           />
         )}
         {order.status === 'done' && !order.paid && (
           <ActionButton
-            color="var(--gold)" textColor="var(--coffee-dark)" label="💳 Collect Payment"
+            color="var(--gold)" textColor="var(--coffee-dark)" label={t.collectPay}
             onClick={onPay}
             icon={<CreditCard size={14} />}
           />
         )}
-        <button
-          onClick={onPrint}
-          style={{
-            padding: '7px 12px', borderRadius: '8px',
-            border: '1px solid #e8d5c4', background: 'white',
-            cursor: 'pointer', fontSize: '12px', color: 'var(--coffee-medium)',
-            display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600',
-          }}
-        >
-          <Printer size={13} /> Print
-        </button>
+        {/* Print dropdown */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowPrintMenu(v => !v)}
+            style={{
+              padding: '7px 12px', borderRadius: '8px',
+              border: '1px solid #e8d5c4', background: 'white',
+              cursor: 'pointer', fontSize: '12px', color: 'var(--coffee-medium)',
+              display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600',
+            }}
+          >
+            <Printer size={13} /> {t.print} ▾
+          </button>
+          {showPrintMenu && (
+            <div
+              style={{
+                position: 'absolute', bottom: '110%', left: 0, zIndex: 50,
+                background: 'white', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                border: '1px solid #e8d5c4', minWidth: '170px', overflow: 'hidden',
+              }}
+            >
+              <button
+                onClick={() => { onPrintOS(); setShowPrintMenu(false) }}
+                style={{
+                  width: '100%', padding: '10px 14px', background: 'none',
+                  border: 'none', cursor: 'pointer', textAlign: 'left',
+                  fontSize: '13px', color: 'var(--coffee-dark)', fontWeight: '600',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  borderBottom: '1px solid #f0e8df',
+                }}
+              >
+                🖨️ USB / Network
+              </button>
+              <button
+                onClick={() => { onPrintBT(); setShowPrintMenu(false) }}
+                style={{
+                  width: '100%', padding: '10px 14px', background: 'none',
+                  border: 'none', cursor: 'pointer', textAlign: 'left',
+                  fontSize: '13px', color: 'var(--coffee-medium)', fontWeight: '600',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                }}
+              >
+                📶 Bluetooth
+              </button>
+            </div>
+          )}
+        </div>
         {order.status !== 'cancelled' && order.status !== 'done' && (
           <button
             onClick={() => onUpdateStatus(order.id, 'cancelled')}
@@ -520,7 +634,7 @@ function OrderCard({
               display: 'flex', alignItems: 'center', gap: '4px',
             }}
           >
-            <AlertCircle size={13} /> Cancel
+            <AlertCircle size={13} /> {t.cancelOrder}
           </button>
         )}
       </div>
