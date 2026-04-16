@@ -268,23 +268,13 @@ export default function POSPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
-          <a href="/" style={{ flex: 1, textDecoration: 'none' }}>
-            <button style={{
-              padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)',
-              background: 'rgba(255,255,255,0.06)', color: 'rgba(245,230,211,0.7)',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              fontSize: '14px', width: '100%',
-            }}>
-              🏠 {lang === 'th' ? 'หน้าหลัก' : 'Home'}
-            </button>
-          </a>
           <button
             onClick={fetchOrders}
             style={{
               padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)',
               background: 'rgba(255,255,255,0.06)', color: 'rgba(245,230,211,0.7)',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              fontSize: '14px', flex: 1,
+              fontSize: '14px', width: '100%',
             }}
           >
             <RefreshCw size={14} /> {t.refresh}
