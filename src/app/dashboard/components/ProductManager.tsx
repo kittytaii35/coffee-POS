@@ -208,7 +208,7 @@ export default function ProductManager() {
 
         <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={selectStyle}>
           <option value="ALL">{t.allCat}</option>
-          {categories.filter(c => c.id !== 'all').map(c => <option key={c.id} value={c.id}>{c.emoji} {lang === 'en' ? c.label : c.label_th}</option>)}
+          {categories.filter((c: Category) => c.id !== 'all').map((c: Category) => <option key={c.id} value={c.id}>{c.emoji} {lang === 'en' ? c.label : c.label_th}</option>)}
         </select>
 
         {/* View Toggle */}
@@ -290,7 +290,7 @@ export default function ProductManager() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(p => (
+              {filtered.map((p: Product) => (
                 <tr key={p.id} style={{ borderBottom: '1px solid #f0e8df' }}>
                   <td style={{ padding: '12px' }}>
                     <div style={{ width: '40px', height: '40px', borderRadius: '8px', overflow: 'hidden', background: '#f3f4f6' }}>
@@ -348,7 +348,7 @@ export default function ProductManager() {
 
             {/* List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px', maxHeight: '300px', overflowY: 'auto' }}>
-              {categories.filter(c => c.id !== 'all').map(c => (
+              {categories.filter((c: any) => c.id !== 'all').map((c: any) => (
                 <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f9fafb', borderRadius: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '20px' }}>{c.emoji}</span>
@@ -413,7 +413,7 @@ export default function ProductManager() {
                     value={currentProduct?.category_id} onChange={e => setCurrentProduct({...currentProduct!, category_id: e.target.value})} 
                     style={selectStyle}
                    >
-                     {categories.filter(c => c.id !== 'all').map(c => <option key={c.id} value={c.id}>{c.emoji} {lang === 'en' ? c.label : c.label_th}</option>)}
+                     {categories.filter((c: any) => c.id !== 'all').map((c: any) => <option key={c.id} value={c.id}>{c.emoji} {lang === 'en' ? c.label : c.label_th}</option>)}
                    </select>
                 </div>
                 <Field label={`${t.price} (${currency})`} type="number" value={currentProduct?.price} onChange={(v: string) => setCurrentProduct({...currentProduct!, price: parseFloat(v)})} />

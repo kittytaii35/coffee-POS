@@ -513,7 +513,7 @@ export default function OrderPage() {
               border: '1px solid #e8d5c4',
             }}>
               <p style={{ fontWeight: '700', marginBottom: '10px', color: 'var(--coffee-dark)' }}>{t.summary}</p>
-              {cart.map(item => (
+              {cart.map((item: any) => (
                 <div key={item.id} style={{
                   display: 'flex', justifyContent: 'space-between',
                   marginBottom: '6px', fontSize: '14px',
@@ -595,7 +595,7 @@ export default function OrderPage() {
               <div style={{ marginBottom: '20px' }}>
                 <p style={{ fontWeight: '700', marginBottom: '10px' }}>{t.swLevel}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {SWEETNESS_OPTIONS.map(opt => (
+                  {SWEETNESS_OPTIONS.map((opt: any) => (
                     <button
                       key={opt.value}
                       onClick={() => setSweetness(opt.value)}

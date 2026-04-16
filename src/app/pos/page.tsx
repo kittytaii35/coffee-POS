@@ -133,7 +133,7 @@ export default function POSPage() {
     shopName: settings.receipt.header || 'Queen Coffee',
     orderId: order.id,
     customerName: order.customer_name,
-    items: order.items.map(i => {
+    items: order.items.map((i: any) => {
       const menuItem = MENU_ITEMS.find(m => m.name === i.name || m.name_th === i.name)
       return {
         name: i.name,
@@ -225,7 +225,7 @@ export default function POSPage() {
             { label: 'Pending', count: stats.pending, color: '#fcd34d', emoji: '⏳' },
             { label: 'Making', count: stats.making, color: '#93c5fd', emoji: '👨‍🍳' },
             { label: 'Done', count: stats.done, color: '#6ee7b7', emoji: '✅' },
-          ].map(s => (
+          ].map((s: any) => (
             <div key={s.label} style={{
               background: 'rgba(255,255,255,0.07)', borderRadius: '12px',
               padding: '10px 14px', display: 'flex', justifyContent: 'space-between',
@@ -252,7 +252,7 @@ export default function POSPage() {
             {t.filter}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {(['all', 'pending', 'making', 'done'] as const).map(s => (
+            {(['all', 'pending', 'making', 'done'] as const).map((s: any) => (
               <button key={s} onClick={() => setFilterStatus(s)} style={{
                 padding: '10px 14px', borderRadius: '10px', border: 'none',
                 background: filterStatus === s ? 'var(--gold)' : 'rgba(255,255,255,0.06)',
@@ -261,7 +261,7 @@ export default function POSPage() {
                 cursor: 'pointer', textAlign: 'left', fontSize: '14px',
                 transition: 'all 0.2s ease',
               }}>
-                {s === 'all' ? `📋 ${t.allOrders}` : `${STATUS_CONFIG[s].emoji} ${t.status[s as keyof typeof t.status]}`}
+                {s === 'all' ? `📋 ${t.allOrders}` : `${STATUS_CONFIG[s as OrderStatus].emoji} ${t.status[s as keyof typeof t.status]}`}
               </button>
             ))}
           </div>
@@ -400,7 +400,7 @@ export default function POSPage() {
                 { type: 'cash' as PaymentType, icon: <Banknote size={20} />, label: 'Cash' },
                 { type: 'transfer' as PaymentType, icon: <CreditCard size={20} />, label: 'Transfer' },
                 { type: 'promptpay' as PaymentType, icon: <QrCode size={20} />, label: 'PromptPay' },
-              ].map(p => (
+              ].map((p: any) => (
                 <button
                   key={p.type}
                   onClick={() => setPaymentType(p.type)}
@@ -514,7 +514,7 @@ function OrderCard({
 
         {/* Items */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {order.items.map((item, i) => {
+          {order.items.map((item: any, i: number) => {
             const menuItem = MENU_ITEMS.find(m => m.name === item.name || m.name_th === item.name)
             const nameTh = item.name_th || menuItem?.name_th
             return (
