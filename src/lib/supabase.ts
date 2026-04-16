@@ -28,7 +28,7 @@ export const createServerSupabaseClient = () => {
   return safeCreateClient(url, serviceRoleKey)
 }
 
-export type OrderStatus = 'pending' | 'making' | 'done' | 'cancelled'
+export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'completed' | 'cancelled'
 export type PaymentType = 'cash' | 'transfer' | 'promptpay'
 export type AttendanceStatus = 'working' | 'done'
 
@@ -45,8 +45,9 @@ export interface OrderItem {
 
 export interface Order {
   id: string
+  order_id: string // e.g. QCF-20260416-0001
   customer_name: string
-  line_user_id?: string
+  customer_line_id?: string
   items: OrderItem[]
   total: number
   status: OrderStatus
@@ -54,6 +55,7 @@ export interface Order {
   paid: boolean
   created_at: string
 }
+
 
 export interface Employee {
   id: string

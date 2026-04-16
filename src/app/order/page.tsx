@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { SWEETNESS_OPTIONS } from '@/lib/menu'
-import { ShoppingCart, Plus, Minus, X, ChevronRight, CheckCircle, Loader2, Coffee } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, ChevronRight, CheckCircle, Loader2, Coffee, Eye } from 'lucide-react'
 import { useSettings } from '@/context/SettingsContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+import Link from 'next/link'
 import { translations } from '@/lib/translations'
 
 interface CartItem {
@@ -21,6 +24,15 @@ interface CartItem {
 type Step = 'menu' | 'cart' | 'info' | 'success'
 
 export default function OrderPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Loader2 className="spin" /></div>}>
+      <OrderContent />
+    </Suspense>
+  )
+}
+
+function OrderContent() {
+  const searchParams = useSearchParams()
   const { lang, toggleLang } = useLanguage()
   const t = translations[lang].order
   const c = translations[lang].common
@@ -38,6 +50,21 @@ export default function OrderPage() {
   const [orderId, setOrderId] = useState('')
   const [currentTime, setCurrentTime] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [lineUserId, setLineUserId] = useState<string | null>(null)
+
+  // Auto-populate from LIFF/Query
+  useEffect(() => {
+    const luid = searchParams.get('line_user_id')
+    const cname = searchParams.get('customer_name')
+    if (luid) setLineUserId(luid)
+    if (cname) setCustomerName(decodeURIComponent(cname))
+    
+    // Check localStorage for recent order
+    const lastOrder = localStorage.getItem('last_order_id')
+    if (lastOrder) {
+       // Optional: show a small toast or button to track last order
+    }
+  }, [searchParams])
 
   const { settings, loading: settingsLoading } = useSettings()
   const shopName = settings.receipt.header
@@ -129,6 +156,7 @@ export default function OrderPage() {
             toppings: i.toppings,
           })),
           total: cartTotal,
+          line_user_id: lineUserId, // Send to API
         }),
       })
       const data = await res.json()
@@ -136,6 +164,8 @@ export default function OrderPage() {
         setOrderId(data.order.id)
         setStep('success')
         setCart([])
+        // Bonus: Store last order for tracking
+        localStorage.setItem('last_order_id', data.order.id)
       }
     } catch {
       alert('Failed to place order. Please try again.')
@@ -171,10 +201,17 @@ export default function OrderPage() {
               #{orderId.slice(-8).toUpperCase()}
             </p>
           </div>
+
+          <Link href={`/track/${orderId}`} style={{ textDecoration: 'none' }}>
+            <button className="btn-gold" style={{ width: '100%', marginBottom: '12px', background: 'linear-gradient(135deg, var(--coffee-medium), var(--coffee-dark))', color: 'white' }}>
+              <Eye size={18} style={{ marginRight: '8px' }} /> ติดตามสถานะออเดอร์ Real-time
+            </button>
+          </Link>
+
           <p style={{ color: 'var(--coffee-light)', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '32px' }}>
             ☕ {t.notify}
           </p>
-          <button className="btn-primary" style={{ width: '100%' }}
+          <button style={{ width: '100%', background: 'none', border: '1px solid #e8d5c4', padding: '12px', borderRadius: '12px', color: 'var(--coffee-light)', fontWeight: '700', cursor: 'pointer' }}
             onClick={() => { setStep('menu'); setCustomerName('') }}>
             {t.orderAgain}
           </button>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isSupabaseConfigured, createServerSupabaseClient, getGlobalSettings } from '@/lib/supabase'
+import { sendLineNotify } from '@/lib/line'
 
 // POST /api/checkin - with GPS + image support
 export async function POST(req: NextRequest) {
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
 
       // LINE notification
       if (LINE_ENABLED && LINE_TOKEN) {
-        await sendLineNotification(
+        await sendLineNotify(
           `✅ ${attendance.employees?.name} เข้างาน ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`,
           LINE_TOKEN
         )
@@ -102,13 +103,3 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-// ── LINE notification ──────────────────────────────────────────
-async function sendLineNotification(text: string, token: string) {
-  try {
-    await fetch('https://api.line.me/v2/bot/message/broadcast', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ messages: [{ type: 'text', text }] }),
-    })
-  } catch { /* silent */ }
-}

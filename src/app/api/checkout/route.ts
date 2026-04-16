@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isSupabaseConfigured, createServerSupabaseClient, getGlobalSettings } from '@/lib/supabase'
+import { sendLineNotify } from '@/lib/line'
 
 // POST /api/checkout
 export async function POST(req: NextRequest) {
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
         const name = active.employees?.name || 'Unknown'
         const hrs = workHours.toFixed(1)
         const timeStr = checkOut.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-        await sendLineNotification(`👋 ${name} ออกงาน ${timeStr} น. (ทำงาน ${hrs} ชม.)`, LINE_TOKEN)
+        await sendLineNotify(`👋 ${name} ออกงาน ${timeStr} น. (ทำงาน ${hrs} ชม.)`, LINE_TOKEN)
       }
 
       return NextResponse.json({ success: true, attendance, work_hours: workHours.toFixed(2) })
@@ -74,12 +75,3 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function sendLineNotification(text: string, token: string) {
-  try {
-    await fetch('https://api.line.me/v2/bot/message/broadcast', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ messages: [{ type: 'text', text }] }),
-    })
-  } catch { /* silent */ }
-}

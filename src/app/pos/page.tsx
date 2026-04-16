@@ -19,8 +19,9 @@ type Tab = 'orders' | 'new-order'
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; emoji: string }> = {
   pending: { label: 'Pending', color: '#92400e', bg: '#fef3c7', emoji: '⏳' },
-  making: { label: 'Making', color: '#1e40af', bg: '#dbeafe', emoji: '👨‍🍳' },
-  done: { label: 'Done', color: '#065f46', bg: '#d1fae5', emoji: '✅' },
+  preparing: { label: 'Preparing', color: '#1e40af', bg: '#dbeafe', emoji: '👨‍🍳' },
+  ready: { label: 'Ready', color: '#065f46', bg: '#d1fae5', emoji: '✅' },
+  completed: { label: 'Completed', color: '#1e293b', bg: '#f1f5f9', emoji: '🏁' },
   cancelled: { label: 'Cancelled', color: '#991b1b', bg: '#fee2e2', emoji: '❌' },
 }
 
@@ -109,13 +110,13 @@ export default function POSPage() {
 
   const handlePayment = async () => {
     if (!selectedOrder) return
-    const orderToPrint = { ...selectedOrder, payment_type: paymentType, paid: true, status: 'done' as OrderStatus }
+    const orderToPrint = { ...selectedOrder, payment_type: paymentType, paid: true, status: 'ready' as OrderStatus }
     setUpdating(selectedOrder.id)
     try {
       await fetch(`/api/orders`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedOrder.id, payment_type: paymentType, paid: true, status: 'done' }),
+        body: JSON.stringify({ id: selectedOrder.id, payment_type: paymentType, paid: true, status: 'ready' }),
       })
       await fetchOrders()
       
@@ -193,8 +194,8 @@ export default function POSPage() {
   const stats = {
     total: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
-    making: orders.filter(o => o.status === 'making').length,
-    done: orders.filter(o => o.status === 'done').length,
+    preparing: orders.filter(o => o.status === 'preparing').length,
+    ready: orders.filter(o => o.status === 'ready').length,
     revenue: orders.filter(o => o.paid).reduce((s, o) => s + o.total, 0),
   }
 
@@ -224,8 +225,8 @@ export default function POSPage() {
         <div className="desktop-only" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
           {[
             { label: 'Pending', count: stats.pending, color: '#fcd34d', emoji: '⏳' },
-            { label: 'Making', count: stats.making, color: '#93c5fd', emoji: '👨‍🍳' },
-            { label: 'Done', count: stats.done, color: '#6ee7b7', emoji: '✅' },
+            { label: 'Preparing', count: stats.preparing, color: '#93c5fd', emoji: '👨‍🍳' },
+            { label: 'Ready', count: stats.ready, color: '#6ee7b7', emoji: '✅' },
           ].map((s: any) => (
             <div key={s.label} style={{
               background: 'rgba(255,255,255,0.07)', borderRadius: '12px',
@@ -338,8 +339,8 @@ export default function POSPage() {
               key={order.id}
               order={order}
               updating={updating === order.id}
-              onSelect={() => setSelectedOrder(selectedOrder?.id === order.id ? null : order)}
               selected={selectedOrder?.id === order.id}
+              onSelect={() => setSelectedOrder(selectedOrder?.id === order.id ? null : order)}
               onUpdateStatus={updateOrderStatus}
               onPay={() => openPaymentModal(order)}
               onPrintOS={() => printReceiptOS(order)}
@@ -347,6 +348,7 @@ export default function POSPage() {
               currency={currency}
               t={t}
               c={c}
+              lang={lang}
             />
           ))}
         </div>
@@ -451,7 +453,7 @@ export default function POSPage() {
 }
 
 function OrderCard({
-  order, updating, selected, onSelect, onUpdateStatus, onPay, onPrintOS, onPrintBT, currency, t, c
+  order, updating, selected, onSelect, onUpdateStatus, onPay, onPrintOS, onPrintBT, currency, t, c, lang
 }: {
   order: Order
   updating: boolean
@@ -464,6 +466,7 @@ function OrderCard({
   currency: string
   t: any
   c: any
+  lang: string
 }) {
   const [showPrintMenu, setShowPrintMenu] = useState(false)
   const config = STATUS_CONFIG[order.status]
@@ -551,24 +554,32 @@ function OrderCard({
         {order.status === 'pending' && (
           <ActionButton
             color="#3b82f6" label={t.startMaking}
-            onClick={() => onUpdateStatus(order.id, 'making')}
+            onClick={() => onUpdateStatus(order.id, 'preparing')}
             icon={<ChefHat size={14} />}
           />
         )}
-        {order.status === 'making' && (
+        {order.status === 'preparing' && (
           <ActionButton
             color="#22c55e" label={t.markDone}
-            onClick={() => onUpdateStatus(order.id, 'done')}
+            onClick={() => onUpdateStatus(order.id, 'ready')}
             icon={<CheckCircle size={14} />}
           />
         )}
-        {order.status === 'done' && !order.paid && (
+        {order.status === 'ready' && !order.paid && (
           <ActionButton
             color="var(--gold)" textColor="var(--coffee-dark)" label={t.collectPay}
             onClick={onPay}
             icon={<CreditCard size={14} />}
           />
         )}
+        {order.status === 'ready' && order.paid && (
+          <ActionButton
+            color="var(--coffee-dark)" label={lang === 'th' ? 'สำเร็จ' : 'Complete'}
+            onClick={() => onUpdateStatus(order.id, 'completed')}
+            icon={<Package size={14} />}
+          />
+        )}
+
         {/* Print dropdown */}
         <div style={{ position: 'relative' }}>
           <button
@@ -616,7 +627,7 @@ function OrderCard({
             </div>
           )}
         </div>
-        {order.status !== 'cancelled' && order.status !== 'done' && (
+        {order.status !== 'cancelled' && order.status !== 'ready' && order.status !== 'completed' && (
           <button
             onClick={() => onUpdateStatus(order.id, 'cancelled')}
             style={{
