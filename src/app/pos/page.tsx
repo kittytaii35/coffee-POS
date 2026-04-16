@@ -199,17 +199,18 @@ export default function POSPage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#faf7f4', overflow: 'hidden' }}>
+    <div className="pos-container" style={{ display: 'flex', minHeight: '100vh', background: '#faf7f4', overflowX: 'hidden' }}>
       {/* Sidebar */}
-      <div style={{
+      <div className="pos-sidebar" style={{
         width: '280px', flexShrink: 0,
         background: 'linear-gradient(160deg, var(--coffee-dark) 0%, var(--coffee-brown) 100%)',
         display: 'flex', flexDirection: 'column', padding: '20px',
         boxShadow: '4px 0 20px rgba(0,0,0,0.2)',
+        zIndex: 50,
       }}>
         {/* Logo */}
         <div style={{ marginBottom: '28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
             <Coffee size={24} color="var(--gold)" />
             <h1 style={{ color: 'white', fontSize: '22px', fontWeight: '800' }}>Queen Coffee</h1>
           </div>
@@ -220,7 +221,7 @@ export default function POSPage() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+        <div className="desktop-only" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
           {[
             { label: 'Pending', count: stats.pending, color: '#fcd34d', emoji: '⏳' },
             { label: 'Making', count: stats.making, color: '#93c5fd', emoji: '👨‍🍳' },
@@ -283,12 +284,13 @@ export default function POSPage() {
       </div>
 
       {/* Main area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="pos-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         {/* Top bar */}
-        <div style={{
+        <div className="header-content" style={{
           background: 'white', padding: '16px 24px',
           borderBottom: '1px solid #e8d5c4',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          position: 'sticky', top: 0, zIndex: 40,
         }}>
           <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--coffee-dark)' }}>
             {t.orders} · {filteredOrders.length}
@@ -314,8 +316,8 @@ export default function POSPage() {
         </div>
 
         {/* Order grid */}
-        <div style={{
-          flex: 1, overflowY: 'auto', padding: '20px',
+        <div className="grid-responsive" style={{
+          flex: 1, padding: '20px',
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
           gap: '16px', alignContent: 'start',

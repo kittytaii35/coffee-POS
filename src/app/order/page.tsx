@@ -191,10 +191,11 @@ export default function OrderPage() {
       {/* Header */}
       <div style={{
         background: 'linear-gradient(135deg, var(--coffee-dark), var(--coffee-brown))',
-        padding: '20px 20px 40px',
-        position: 'sticky', top: 0, zIndex: 50,
+        padding: '24px 20px',
+        position: 'sticky', top: 0, zIndex: 100,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+        <div className="header-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Coffee size={22} color="var(--gold)" />
@@ -309,7 +310,7 @@ export default function OrderPage() {
                 <p>Loading menu...</p>
              </div>
           ) : viewMode === 'grid' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
+            <div className="grid-responsive" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
               {filteredMenu.map(item => (
                 <div key={item.id} className="menu-card" onClick={() => openItemModal(item)}>
                   <div style={{
