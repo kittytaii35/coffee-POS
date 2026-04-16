@@ -629,7 +629,7 @@ function OrderCard({
             </div>
           )}
         </div>
-        {order.status !== 'cancelled' && order.status !== 'ready' && order.status !== 'completed' && (
+        {order.status !== 'cancelled' && order.status !== 'ready' && order.status !== 'completed' && !order.paid && (
           <button
             onClick={() => onUpdateStatus(order.id, 'cancelled')}
             style={{

@@ -54,6 +54,7 @@ export interface Order {
   payment_type?: PaymentType
   paid: boolean
   created_at: string
+  updated_at?: string
 }
 
 

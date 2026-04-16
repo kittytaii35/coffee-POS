@@ -172,28 +172,33 @@ export async function PATCH(req: NextRequest) {
     }
 
     // ── LINE: แจ้งเปลี่ยนสถานะ ─────────────────────────────
-    if (status === 'preparing' || status === 'ready') {
-      const orderIdShort = (updatedOrder?.order_id || updatedOrder?.id || id).slice(-8).toUpperCase()
-      const customerName = updatedOrder?.customer_name || ''
-      const statusLabel: Record<string, string> = {
-        preparing: '👨‍🍳 กำลังทำ',
-        ready: '✅ พร้อมรับแล้ว!',
-      }
-      const msg = `${statusLabel[status]}\nออเดอร์ ${orderIdShort}${customerName ? ` · ${customerName}` : ''}`
-      await sendNotification(msg)
+    try {
+      if (status === 'preparing' || status === 'ready') {
+        const orderIdShort = (updatedOrder?.order_id || updatedOrder?.id || id).slice(-8).toUpperCase()
+        const customerName = updatedOrder?.customer_name || ''
+        const statusLabel: Record<string, string> = {
+          preparing: '👨‍🍳 กำลังทำ',
+          ready: '✅ พร้อมรับแล้ว!',
+        }
+        const msg = `${statusLabel[status]}\nออเดอร์ ${orderIdShort}${customerName ? ` · ${customerName}` : ''}`
+        await sendNotification(msg)
 
-      // Notify Customer via Push (if LINE ID exists)
-      const channelToken = process.env.LINE_CHANNEL_ACCESS_TOKEN
-      const customerLineId = updatedOrder?.customer_line_id
-      if (customerLineId && channelToken) {
-         let customerStatusMsg = ''
-         if (status === 'preparing') customerStatusMsg = `☕ ออเดอร์ ${orderIdShort} ของคุณกำลังเริ่มปรุงแล้วค่ะ`
-         if (status === 'ready') customerStatusMsg = `✅ ออเดอร์ ${orderIdShort} เสร็จเรียบร้อยแล้วค่ะ! เชิญมารับได้ที่เคาน์เตอร์นะคะ`
-         
-         if (customerStatusMsg) {
+        // Notify Customer via Push (if LINE ID exists)
+        const channelToken = process.env.LINE_CHANNEL_ACCESS_TOKEN
+        const customerLineId = updatedOrder?.customer_line_id
+        if (customerLineId && channelToken) {
+          let customerStatusMsg = ''
+          if (status === 'preparing') customerStatusMsg = `☕ ออเดอร์ ${orderIdShort} ของคุณกำลังเริ่มปรุงแล้วค่ะ`
+          if (status === 'ready') customerStatusMsg = `✅ ออเดอร์ ${orderIdShort} เสร็จเรียบร้อยแล้วค่ะ! เชิญมารับได้ที่เคาน์เตอร์นะคะ`
+          
+          if (customerStatusMsg) {
             await sendLinePush(customerLineId, customerStatusMsg, channelToken)
-         }
+          }
+        }
       }
+    } catch (lineErr) {
+      console.error('LINE notification failed:', lineErr)
+      // We don't throw – permit the order update to succeed even if LINE fails
     }
 
     return NextResponse.json({ success: true, order: updatedOrder })
