@@ -171,11 +171,25 @@ export async function PATCH(req: NextRequest) {
       updatedOrder = mockOrders[idx]
     }
 
-    // ── LINE: แจ้งเปลี่ยนสถานะ ─────────────────────────────
+    // ── LINE: แจ้งเปลี่ยนสถานะ / การชำระเงิน ───────────────────
     try {
-      if (status === 'preparing' || status === 'ready') {
-        const orderIdShort = (updatedOrder?.order_id || updatedOrder?.id || id).slice(-8).toUpperCase()
-        const customerName = updatedOrder?.customer_name || ''
+      const orderIdShort = (updatedOrder?.order_id || updatedOrder?.id || id).slice(-8).toUpperCase()
+      const customerName = updatedOrder?.customer_name || ''
+      const channelToken = process.env.LINE_CHANNEL_ACCESS_TOKEN
+      const customerLineId = updatedOrder?.customer_line_id
+
+      // 1. กรณีแจ้งเตือนการชำระเงิน (สำคัญที่สุด)
+      if (paid === true) {
+        const payMsg = `💰 ชำระเงินเรียบร้อยแล้ว!\nออเดอร์ ${orderIdShort}${customerName ? ` · ${customerName}` : ''}`
+        await sendNotification(payMsg)
+
+        if (customerLineId && channelToken) {
+          const customerPayMsg = `✅ ออเดอร์ ${orderIdShort} ชำระเงินเรียบร้อยแล้วค่ะ! ขอบคุณมากนะคะ`
+          await sendLinePush(customerLineId, customerPayMsg, channelToken)
+        }
+      } 
+      // 2. กรณีแจ้งสถานะ (เฉพาะถ้าไม่ได้ชำระเงินในครั้งเดียวกัน เพื่อลดความซ้ำซ้อน)
+      else if (status === 'preparing' || status === 'ready') {
         const statusLabel: Record<string, string> = {
           preparing: '👨‍🍳 กำลังทำ',
           ready: '✅ พร้อมรับแล้ว!',
@@ -183,9 +197,6 @@ export async function PATCH(req: NextRequest) {
         const msg = `${statusLabel[status]}\nออเดอร์ ${orderIdShort}${customerName ? ` · ${customerName}` : ''}`
         await sendNotification(msg)
 
-        // Notify Customer via Push (if LINE ID exists)
-        const channelToken = process.env.LINE_CHANNEL_ACCESS_TOKEN
-        const customerLineId = updatedOrder?.customer_line_id
         if (customerLineId && channelToken) {
           let customerStatusMsg = ''
           if (status === 'preparing') customerStatusMsg = `☕ ออเดอร์ ${orderIdShort} ของคุณกำลังเริ่มปรุงแล้วค่ะ`
@@ -198,7 +209,6 @@ export async function PATCH(req: NextRequest) {
       }
     } catch (lineErr) {
       console.error('LINE notification failed:', lineErr)
-      // We don't throw – permit the order update to succeed even if LINE fails
     }
 
     return NextResponse.json({ success: true, order: updatedOrder })
