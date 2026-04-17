@@ -66,7 +66,7 @@ interface AttendanceRecord {
 interface EmployeeSummary {
   name: string; role: string; totalHours: number; sessions: number
 }
-type Period = 'daily' | 'weekly' | 'monthly'
+type Period = 'custom' | 'daily' | 'weekly' | 'monthly'
 type Tab = 'overview' | 'reports' | 'cash' | 'attendance'
 
 // ─── Palette helper ───────────────────────────────────────────
@@ -81,6 +81,7 @@ const insightColors = {
 export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>('daily')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [summary, setSummary] = useState<Record<string, EmployeeSummary>>({})
   const [orders, setOrders] = useState<Order[]>([])
@@ -102,9 +103,12 @@ export default function DashboardPage() {
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
+      const url = `/api/attendance?period=${period}&date=${date}&endDate=${endDate}`
+      const ordUrl = `/api/orders?date=${date}&endDate=${endDate}&period=${period}`
+      
       const [attRes, ordRes] = await Promise.all([
-        fetch(`/api/attendance?period=${period}&date=${date}`),
-        fetch(`/api/orders?date=${date}`)
+        fetch(url),
+        fetch(ordUrl)
       ])
       const [attData, ordData] = await Promise.all([attRes.json(), ordRes.json()])
       
@@ -133,7 +137,7 @@ export default function DashboardPage() {
       setAnalytics(analyzeOrders(mockOrders))
     }
     setLoading(false)
-  }, [period, date, lang, menuMap])
+  }, [period, date, endDate, lang, menuMap])
 
   // Fetch menu once on mount
   useEffect(() => {
@@ -173,7 +177,23 @@ export default function DashboardPage() {
 
   const changeDate = (delta: number) => {
     const d = new Date(date); d.setDate(d.getDate() + delta)
-    setDate(d.toISOString().split('T')[0])
+    const newDateStr = d.toISOString().split('T')[0]
+    setDate(newDateStr)
+    if (period === 'daily') setEndDate(newDateStr)
+  }
+
+  const handlePeriodChange = (p: Period) => {
+    setPeriod(p)
+    const today = new Date().toISOString().split('T')[0]
+    if (p === 'daily') {
+      setDate(today); setEndDate(today)
+    } else if (p === 'weekly') {
+      const d = new Date(); d.setDate(d.getDate() - 6)
+      setDate(d.toISOString().split('T')[0]); setEndDate(today)
+    } else if (p === 'monthly') {
+      const d = new Date(); d.setDate(d.getDate() - 29)
+      setDate(d.toISOString().split('T')[0]); setEndDate(today)
+    }
   }
 
   const totalWorkHours = Object.values(summary).reduce((s, e) => s + e.totalHours, 0)
@@ -240,10 +260,10 @@ export default function DashboardPage() {
             <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               {/* Period */}
               <div className="desktop-only" style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '4px' }}>
-                {(['daily', 'weekly', 'monthly'] as const).map(p => {
-                  const labelMap: Record<string, string> = { daily: c.daily, weekly: c.weekly, monthly: c.monthly }
+                {(['daily', 'weekly', 'monthly', 'custom'] as const).map(p => {
+                  const labelMap: Record<string, string> = { daily: c.daily, weekly: c.weekly, monthly: c.monthly, custom: lang === 'th' ? 'เลือกช่วง' : 'Custom' }
                   return (
-                    <button key={p} onClick={() => setPeriod(p)} style={{
+                    <button key={p} onClick={() => handlePeriodChange(p)} style={{
                       padding: '6px 14px', borderRadius: '9px', border: 'none',
                       background: period === p ? 'var(--gold)' : 'transparent',
                       color: period === p ? 'var(--coffee-dark)' : 'rgba(245,230,211,0.7)',
@@ -254,23 +274,32 @@ export default function DashboardPage() {
                 })}
               </div>
 
-              {/* Date nav */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <button onClick={() => changeDate(-1)} style={{
-                  width: '32px', height: '32px', borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
-                  cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}><ChevronLeft size={16} /></button>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{
-                  padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.2)',
-                  background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', outline: 'none',
-                  width: '130px'
-                }} />
-                <button onClick={() => changeDate(1)} style={{
-                  width: '32px', height: '32px', borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
-                  cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}><ChevronRight size={16} /></button>
+              {/* Date nav / Range Picker */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.08)', padding: '4px 12px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.15)' }}>
+                {period === 'daily' && (
+                  <button onClick={() => changeDate(-1)} style={dateArrowStyle}><ChevronLeft size={16} /></button>
+                )}
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <span style={dateLabelStyle}>{lang === 'th' ? 'เริ่ม' : 'Start'}</span>
+                    <input type="date" value={date} onChange={e => { setDate(e.target.value); if (period !== 'custom') setPeriod('custom') }} style={dateInputStyle} />
+                  </div>
+                  
+                  {period !== 'daily' && (
+                    <>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontWeight: '300' }}>→</div>
+                      <div style={{ position: 'relative' }}>
+                        <span style={dateLabelStyle}>{lang === 'th' ? 'ถึง' : 'End'}</span>
+                        <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); if (period !== 'custom') setPeriod('custom') }} style={dateInputStyle} />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {period === 'daily' && (
+                  <button onClick={() => changeDate(1)} style={dateArrowStyle}><ChevronRight size={16} /></button>
+                )}
               </div>
 
               {/* Lang toggle */}
@@ -474,7 +503,7 @@ export default function DashboardPage() {
 
         {/* ── REPORTS TAB ── */}
         {!loading && activeTab === 'reports' && (
-          <UnifiedReports />
+          <UnifiedReports period={period} date={date} endDate={endDate} />
         )}
 
         {/* ── CASH CONTROL TAB ── */}
@@ -537,4 +566,21 @@ function ChipLegend({ color, label }: { color: string; label: string }) {
       <span style={{ fontSize: '12px', color: 'var(--coffee-light)' }}>{label}</span>
     </div>
   )
+}
+
+const dateInputStyle: React.CSSProperties = {
+  padding: '6px 8px 6px 42px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', outline: 'none',
+  width: '145px', cursor: 'pointer'
+}
+
+const dateLabelStyle: React.CSSProperties = {
+  position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
+  fontSize: '10px', color: 'var(--gold)', fontWeight: '800', pointerEvents: 'none', borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '6px'
+}
+
+const dateArrowStyle: React.CSSProperties = {
+  width: '28px', height: '28px', borderRadius: '8px', border: 'none',
+  background: 'rgba(255,255,255,0.1)', cursor: 'pointer', color: 'white',
+  display: 'flex', alignItems: 'center', justifyContent: 'center'
 }

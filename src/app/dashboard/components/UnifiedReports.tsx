@@ -7,7 +7,13 @@ import { useSettings } from '@/context/SettingsContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
 
-export default function UnifiedReports() {
+interface UnifiedReportsProps {
+  period: string
+  date: string
+  endDate: string
+}
+
+export default function UnifiedReports({ period, date, endDate }: UnifiedReportsProps) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'sales' | 'products' | 'payments' | 'staff'>('sales')
@@ -18,13 +24,14 @@ export default function UnifiedReports() {
   const currency = settings.pos.currency
 
   useEffect(() => {
-    fetch('/api/reports')
+    setLoading(true)
+    fetch(`/api/reports?period=${period}&date=${date}&endDate=${endDate}`)
       .then(r => r.json())
       .then(d => {
         if (!d.error) setData(d)
         setLoading(false)
       })
-  }, [])
+  }, [period, date, endDate])
 
   const exportCSV = (filename: string, headers: string[], rows: any[][]) => {
     const csv = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.map(s => `"${s}"`).join(','))].join('\n')
