@@ -495,8 +495,8 @@ function OrderCard({
   }
 
   useEffect(() => {
-    if (selected) fetchGuestHistory()
-  }, [selected])
+    fetchGuestHistory()
+  }, [])
 
   const config = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
   const timeSince = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
@@ -515,9 +515,21 @@ function OrderCard({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
           <div>
-            <p className="thai-fix" style={{ fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)' }}>
-              {order.customer_name}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <p className="thai-fix" style={{ fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)', margin: 0 }}>
+                {order.customer_name}
+              </p>
+              {order.customer_line_id && guestHistory && (
+                <span style={{ 
+                  padding: '2px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '800',
+                  background: guestHistory.count > 3 ? 'var(--gold)' : '#e2e8f0',
+                  color: guestHistory.count > 3 ? 'var(--coffee-dark)' : '#475569',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {guestHistory.count > 1 ? `${t.orderCount} ${guestHistory.count} ${t.times}` : t.noPreviousOrders}
+                </span>
+              )}
+            </div>
             <p style={{ fontSize: '12px', color: 'var(--coffee-light)' }}>
               #{order.id.slice(-8).toUpperCase()}
             </p>
@@ -571,14 +583,6 @@ function OrderCard({
               <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--coffee-dark)' }}>
                 {t.recentHistory}
               </span>
-              {!loadingHistory && guestHistory && (
-                <span style={{ 
-                  fontSize: '11px', background: 'var(--coffee-dark)', color: 'white', 
-                  padding: '2px 8px', borderRadius: '10px', marginLeft: 'auto' 
-                }}>
-                  {t.orderCount} {guestHistory.count} {t.times}
-                </span>
-              )}
             </div>
             
             {loadingHistory ? (
