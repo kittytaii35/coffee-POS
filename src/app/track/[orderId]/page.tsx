@@ -4,7 +4,7 @@ import { useEffect, useState, use } from 'react'
 import { supabase, Order, OrderStatus } from '@/lib/supabase'
 import {
   Clock, ChefHat, CheckCircle, Package,
-  ArrowLeft, Coffee, QrCode, Calendar, CreditCard, Loader2
+  ArrowLeft, Coffee, QrCode, Calendar, CreditCard, Loader2, Globe
 } from 'lucide-react'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
@@ -15,7 +15,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const { lang, toggleLang } = useLanguage()
-  const t = translations[lang].common
+  const c = translations[lang].common
   const tr = translations[lang].order.track
 
   const STATUS_STEPS: { status: OrderStatus; icon: any; key: keyof typeof tr.steps }[] = [
@@ -102,19 +102,23 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button 
               onClick={toggleLang}
+              className="thai-fix"
               style={{ 
                 background: 'rgba(255,255,255,0.15)', 
                 color: 'white', 
                 border: '1px solid rgba(255,255,255,0.2)', 
-                padding: '8px 14px', 
+                padding: '8px 16px', 
                 borderRadius: '14px', 
                 fontSize: '13px', 
                 fontWeight: '700', 
                 cursor: 'pointer',
-                backdropFilter: 'blur(10px)'
+                backdropFilter: 'blur(10px)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
               }}
             >
-              {translations[lang].common.langToggle}
+              <Globe size={16} /> <span>{c.langToggle}</span>
             </button>
             <div style={{ textAlign: 'right', marginLeft: '8px' }}>
               <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{tr.orderId}</p>

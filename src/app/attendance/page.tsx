@@ -112,8 +112,19 @@ export default function AttendancePage() {
     calc(); const t = setInterval(calc, 1000); return () => clearInterval(t)
   }, [attendance])
 
-  // Cleanup camera
-  useEffect(() => () => { streamRef.current?.getTracks().forEach(t => t.stop()) }, [])
+  // Cleanup camera & scroll lock
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      document.body.style.overflow = 'unset'
+    }
+  }, [])
+
+  // Scroll lock when modal is open
+  useEffect(() => {
+    const isModalOpen = antiCheatStep !== 'idle' || showConfirmOut || !!selectedRecord
+    document.body.style.overflow = isModalOpen ? 'hidden' : 'unset'
+  }, [antiCheatStep, showConfirmOut, selectedRecord])
 
   // Fetch history & summary
   const fetchHistoryAndSummary = useCallback(async (emp: Employee) => {
@@ -260,7 +271,19 @@ export default function AttendancePage() {
           </div>
           <div className="animate-slide-up glass" style={{ padding: '32px', borderRadius: '28px', width: '100%', maxWidth: '340px', textAlign: 'center', position: 'relative' }}>
             <a href="/" style={{ position: 'absolute', top: '16px', left: '16px' }}><button style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', padding: '6px 10px', color: 'var(--coffee-dark)', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>🏠 {lang === 'th' ? 'กลับ' : 'Back'}</button></a>
-            <button onClick={toggleLang} style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', padding: '6px 12px', color: 'var(--coffee-dark)', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}><Globe size={14} /> {c.langToggle}</button>
+            <button 
+              onClick={toggleLang} 
+              className="thai-fix"
+              style={{ 
+                position: 'absolute', top: '16px', right: '16px', 
+                background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', 
+                borderRadius: '12px', padding: '6px 12px', color: 'var(--coffee-dark)', 
+                fontWeight: '700', fontSize: '13px', cursor: 'pointer', 
+                display: 'flex', alignItems: 'center', gap: '6px' 
+              }}
+            >
+              <Globe size={16} /> <span>{c.langToggle}</span>
+            </button>
             <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--coffee-medium), var(--gold))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}><User size={26} color="white" /></div>
             <h2 className="thai-fix" style={{ fontSize: '22px', fontWeight: '800', color: 'var(--coffee-dark)' }}>{t.pinTitle}</h2>
             <p className="thai-fix" style={{ color: 'var(--coffee-medium)', fontSize: '14px', marginBottom: '24px' }}>{t.pinSubtitle}</p>
@@ -388,8 +411,8 @@ export default function AttendancePage() {
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
             {activeTab === 'status' && (
               <div style={{ textAlign: 'center' }}>
-                <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '20px', padding: '20px', marginBottom: '14px' }}>
-                  <div style={{ padding: '8px 20px', borderRadius: '24px', background: isWorking ? 'rgba(34,197,94,0.2)' : 'rgba(251,191,36,0.2)', display: 'inline-block', marginBottom: '16px' }}><span style={{ color: isWorking ? '#4ade80' : '#fbbf24', fontWeight: '800' }}>{isWorking ? t.working : t.notStarted}</span></div>
+                <div className="animate-pop-in" style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '20px', padding: '20px', marginBottom: '14px' }}>
+                  <div style={{ padding: '8px 20px', borderRadius: '24px', background: isWorking ? 'rgba(34,197,94,0.2)' : 'rgba(251,191,36,0.2)', display: 'inline-block', marginBottom: '16px' }}><span className="animate-success" style={{ display: 'inline-block', color: isWorking ? '#4ade80' : '#fbbf24', fontWeight: '800' }}>{isWorking ? t.working : t.notStarted}</span></div>
                   {isWorking && workTimer && <p style={{ color: 'var(--gold)', fontSize: '44px', fontWeight: '900' }}>{workTimer}</p>}
                 </div>
                 {!isWorking && !isDone && <button onClick={() => startAntiCheat('checkin')} style={{ width: '100%', padding: '20px', background: '#22c55e', borderRadius: '18px', color: 'white', fontSize: '20px', fontWeight: '800', border: 'none', cursor: 'pointer' }}><LogIn /> {t.checkIn}</button>}

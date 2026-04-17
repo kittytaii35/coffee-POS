@@ -7,7 +7,7 @@ import { generatePromptPayPayload } from '@/lib/promptpay'
 import {
   Clock, CheckCircle, AlertCircle,
   Printer, CreditCard, Banknote, QrCode,
-  RefreshCw, Coffee, ChefHat, Package
+  RefreshCw, Coffee, ChefHat, Package, Globe, User
 } from 'lucide-react'
 import QRCode from 'qrcode'
 import { useSettings } from '@/context/SettingsContext'
@@ -308,12 +308,16 @@ export default function POSPage() {
                 <Package size={14} /> {t.customerOrder}
               </button>
             </a>
-            <button onClick={toggleLang} style={{
-              padding: '8px 14px', borderRadius: '10px', border: '2px solid #e8d5c4',
-              background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '700',
-              color: 'var(--coffee-medium)'
-            }}>
-              {c.langToggle}
+            <button 
+              onClick={toggleLang} 
+              className="thai-fix"
+              style={{
+                padding: '8px 16px', borderRadius: '10px', border: '2px solid #e8d5c4',
+                background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '700',
+                color: 'var(--coffee-medium)', display: 'flex', alignItems: 'center', gap: '8px'
+              }}
+            >
+              <Globe size={16} /> <span>{c.langToggle}</span>
             </button>
           </div>
         </div>
@@ -380,7 +384,7 @@ export default function POSPage() {
               {t.orders} #{selectedOrder.id.slice(-8).toUpperCase()} · {selectedOrder.customer_name}
             </p>
 
-            <div style={{
+            <div className="animate-pop-in" style={{
               background: '#fdf6f0', borderRadius: '16px', padding: '20px',
               marginBottom: '20px', textAlign: 'center',
             }}>
@@ -471,6 +475,29 @@ function OrderCard({
   lang: string
 }) {
   const [showPrintMenu, setShowPrintMenu] = useState(false)
+  const [guestHistory, setGuestHistory] = useState<{ count: number; recent: any[] } | null>(null)
+  const [loadingHistory, setLoadingHistory] = useState(false)
+
+  const fetchGuestHistory = async () => {
+    if (!order.customer_line_id || guestHistory) return
+    setLoadingHistory(true)
+    try {
+      const res = await fetch(`/api/orders?search=${order.customer_line_id}&limit=5`)
+      const data = await res.json()
+      if (data.orders) {
+        setGuestHistory({
+          count: data.orders.length,
+          recent: data.orders.slice(0, 3)
+        })
+      }
+    } catch (e) { console.error(e) }
+    setLoadingHistory(false)
+  }
+
+  useEffect(() => {
+    if (selected) fetchGuestHistory()
+  }, [selected])
+
   const config = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
   const timeSince = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
 
@@ -532,6 +559,44 @@ function OrderCard({
             )
           })}
         </div>
+
+        {/* Guest History Section (Only if selected and has line_id) */}
+        {selected && order.customer_line_id && (
+          <div style={{ 
+            marginTop: '12px', padding: '10px', background: '#f8fafc', 
+            borderRadius: '12px', border: '1px dashed #cbd5e1' 
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+              <User size={14} color="var(--coffee-medium)" />
+              <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--coffee-dark)' }}>
+                {t.recentHistory}
+              </span>
+              {!loadingHistory && guestHistory && (
+                <span style={{ 
+                  fontSize: '11px', background: 'var(--coffee-dark)', color: 'white', 
+                  padding: '2px 8px', borderRadius: '10px', marginLeft: 'auto' 
+                }}>
+                  {t.orderCount} {guestHistory.count} {t.times}
+                </span>
+              )}
+            </div>
+            
+            {loadingHistory ? (
+              <p style={{ fontSize: '12px', color: 'var(--coffee-light)', fontStyle: 'italic' }}>{c.loading}</p>
+            ) : guestHistory?.recent.length ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {guestHistory.recent.map((h, i) => (
+                  <div key={i} style={{ fontSize: '11px', color: 'var(--coffee-medium)', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>• {h.items.map((it:any) => it.name).join(', ')}</span>
+                    <span style={{ color: 'var(--coffee-light)' }}>{new Date(h.created_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { day: '2-digit', month: 'short' })}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: '12px', color: 'var(--coffee-light)' }}>{t.noPreviousOrders}</p>
+            )}
+          </div>
+        )}
 
         <div style={{
           display: 'flex', justifyContent: 'space-between',

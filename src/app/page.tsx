@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Loader2, X, ShieldAlert } from 'lucide-react'
+import { Eye, EyeOff, Loader2, X, ShieldAlert, Globe } from 'lucide-react'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
 
@@ -97,15 +97,17 @@ export default function HomePage() {
 
       {/* Logo */}
       {/* Header-like actions */}
-      <div className="header-content" style={{ position: 'absolute', top: '24px', left: '24px', right: '24px', display: 'flex', justifyContent: 'flex-end', zIndex: 100 }}>
+      <div className="header-content" style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 100 }}>
         <button 
           onClick={toggleLang}
+          className="thai-fix"
           style={{
             background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', 
-            padding: '8px 14px', borderRadius: '14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer'
+            padding: '8px 16px', borderRadius: '14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '8px'
           }}
         >
-          {t.common.langToggle}
+          <Globe size={16} /> <span>{t.common.langToggle}</span>
         </button>
       </div>
 

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   Users, Plus, Pencil, Trash2, Save, X,
   ArrowLeft, ShieldCheck, RefreshCw, Coffee,
-  Eye, EyeOff, UserPlus, Search, ChevronRight
+  Eye, EyeOff, UserPlus, Search, ChevronRight, Globe
 } from 'lucide-react'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
@@ -195,12 +195,17 @@ export default function EmployeesPage() {
           </div>
 
           <div className="header-actions" style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={toggleLang} style={{
-              background: 'rgba(255,255,255,0.15)', color: 'white',
-              border: '1px solid rgba(255,255,255,0.25)', padding: '8px 14px',
-              borderRadius: '12px', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
-            }}>
-              {c.langToggle}
+            <button 
+              onClick={toggleLang} 
+              className="thai-fix"
+              style={{
+                background: 'rgba(255,255,255,0.15)', color: 'white',
+                border: '1px solid rgba(255,255,255,0.25)', padding: '8px 16px',
+                borderRadius: '12px', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '8px'
+              }}
+            >
+              <Globe size={16} /> <span>{c.langToggle}</span>
             </button>
             <button onClick={openAdd} style={{
               background: 'var(--gold)', color: 'var(--coffee-dark)',

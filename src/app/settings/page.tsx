@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Settings } from 'lucide-react'
+import { ArrowLeft, Settings, Globe } from 'lucide-react'
 import GlobalSettingsManager from '../dashboard/components/GlobalSettingsManager'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
@@ -42,12 +42,14 @@ export default function SettingsPage() {
           <div className="header-actions">
             <button 
               onClick={toggleLang}
+              className="thai-fix"
               style={{
                 background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', 
-                padding: '8px 14px', borderRadius: '12px', fontSize: '13px', fontWeight: '700', cursor: 'pointer'
+                padding: '8px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '8px'
               }}
             >
-              {c.langToggle}
+              <Globe size={16} /> <span>{c.langToggle}</span>
             </button>
           </div>
         </div>

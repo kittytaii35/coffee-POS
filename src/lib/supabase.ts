@@ -110,6 +110,17 @@ export interface Payment {
   amount: number
   created_at: string
 }
+
+export interface Member {
+  id: string
+  name: string
+  phone: string
+  line_id?: string
+  points: number
+  total_spent: number
+  created_at: string
+  last_visited?: string
+}
 // --- GLOBAL SETTINGS ---
 export interface GlobalSettings {
   pos: {

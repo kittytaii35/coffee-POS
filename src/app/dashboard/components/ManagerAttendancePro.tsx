@@ -116,8 +116,15 @@ export default function ManagerAttendancePro() {
   useEffect(() => {
     fetchData()
     const t = setInterval(fetchData, 10000) // Poll every 10s for near real-time
-    return () => clearInterval(t)
+    return () => {
+      clearInterval(t)
+      document.body.style.overflow = 'unset'
+    }
   }, [])
+
+  useEffect(() => {
+    document.body.style.overflow = selectedRecord ? 'hidden' : 'unset'
+  }, [selectedRecord])
 
   const exportCSV = () => {
     if (!data || data.history.length === 0) return

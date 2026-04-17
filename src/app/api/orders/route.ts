@@ -228,19 +228,35 @@ export async function GET(req: NextRequest) {
     const supabase = createServerSupabaseClient()
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
-    const date = searchParams.get('date')
+    const date = searchParams.get('date') // single date (legacy)
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+    const search = searchParams.get('search')
 
     let query = supabase.from('orders').select('*').order('created_at', { ascending: false })
 
-    if (status) query = query.eq('status', status)
+    if (status && status !== 'all') query = query.eq('status', status)
 
     if (date) {
       query = query
         .gte('created_at', `${date}T00:00:00`)
         .lte('created_at', `${date}T23:59:59`)
+    } else if (startDate && endDate) {
+      query = query
+        .gte('created_at', `${startDate}T00:00:00`)
+        .lte('created_at', `${endDate}T23:59:59`)
     }
 
-    const { data: orders, error } = await query.limit(100)
+    if (search) {
+      if (search.startsWith('U') && search.length > 20) {
+        // Special case: direct LINE ID search for guest history
+        query = query.eq('customer_line_id', search)
+      } else {
+        query = query.or(`customer_name.ilike.%${search}%,order_id.ilike.%${search}%,customer_line_id.ilike.%${search}%`)
+      }
+    }
+
+    const { data: orders, error } = await query.limit(500)
     if (error) throw error
 
     return NextResponse.json({ orders })

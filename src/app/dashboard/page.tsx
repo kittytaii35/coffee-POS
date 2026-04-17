@@ -15,6 +15,8 @@ import type { Order } from '@/lib/analytics'
 import ManagerAttendancePro from './components/ManagerAttendancePro'
 import UnifiedReports from './components/UnifiedReports'
 import CashControl from './components/CashControl'
+import OrderHistory from './components/OrderHistory'
+import ManagerMembers from './components/ManagerMembers'
 
 // ─── Mock fallback with richer data ──────────────────────────
 const mockOrders: Order[] = (() => {
@@ -67,14 +69,14 @@ interface EmployeeSummary {
   name: string; role: string; totalHours: number; sessions: number
 }
 type Period = 'custom' | 'daily' | 'weekly' | 'monthly'
-type Tab = 'overview' | 'reports' | 'cash' | 'attendance'
+type Tab = 'overview' | 'reports' | 'cash' | 'attendance' | 'members' | 'history'
 
 // ─── Palette helper ───────────────────────────────────────────
 const insightColors = {
   success: { bg: '#f0fdf4', border: '#86efac', icon: '#16a34a', text: '#15803d' },
   warning: { bg: '#fffbeb', border: '#fcd34d', icon: '#d97706', text: '#92400e' },
-  danger:  { bg: '#fef2f2', border: '#fca5a5', icon: '#dc2626', text: '#991b1b' },
-  info:    { bg: '#eff6ff', border: '#93c5fd', icon: '#2563eb', text: '#1e40af' },
+  danger: { bg: '#fef2f2', border: '#fca5a5', icon: '#dc2626', text: '#991b1b' },
+  info: { bg: '#eff6ff', border: '#93c5fd', icon: '#2563eb', text: '#1e40af' },
 }
 
 // ─── Component ────────────────────────────────────────────────
@@ -105,16 +107,16 @@ export default function DashboardPage() {
     try {
       const url = `/api/attendance?period=${period}&date=${date}&endDate=${endDate}`
       const ordUrl = `/api/orders?date=${date}&endDate=${endDate}&period=${period}`
-      
+
       const [attRes, ordRes] = await Promise.all([
         fetch(url),
         fetch(ordUrl)
       ])
       const [attData, ordData] = await Promise.all([attRes.json(), ordRes.json()])
-      
+
       if (attData.records) setRecords(attData.records)
       if (attData.summary) setSummary(attData.summary)
-      
+
       const fetchedOrders: Order[] = ordData.orders || mockOrders
 
       // Attach localized names dynamically using cached menuMap
@@ -152,7 +154,7 @@ export default function DashboardPage() {
           setMenuMap(m)
         }
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -269,11 +271,16 @@ export default function DashboardPage() {
                 </button>
               </a>
               {/* Lang toggle */}
-              <button onClick={toggleLang} style={{
-                background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)',
-                padding: '6px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', cursor: 'pointer'
-              }}>
-                <Globe size={14} style={{ display: 'inline', marginRight: '4px' }} /> <span className="desktop-only">{c.langToggle}</span> {lang.toUpperCase()}
+              <button 
+                onClick={toggleLang} 
+                className="thai-fix"
+                style={{
+                  background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)',
+                  padding: '6px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}
+              >
+                <Globe size={16} /> <span>{c.langToggle}</span>
               </button>
             </div>
           </div>
@@ -300,13 +307,13 @@ export default function DashboardPage() {
               {period === 'daily' && (
                 <button onClick={() => changeDate(-1)} style={dateArrowStyle}><ChevronLeft size={16} /></button>
               )}
-              
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div style={{ position: 'relative' }}>
                   <span style={dateLabelStyle}>{lang === 'th' ? 'เริ่ม' : 'Start'}</span>
                   <input type="date" value={date} onChange={e => { setDate(e.target.value); if (period !== 'custom') setPeriod('custom') }} style={dateInputStyle} />
                 </div>
-                
+
                 {period !== 'daily' && (
                   <>
                     <div style={{ color: 'rgba(255,255,255,0.3)', fontWeight: '300' }}>-</div>
@@ -331,6 +338,8 @@ export default function DashboardPage() {
               { id: 'reports', label: t.reports },
               { id: 'cash', label: t.cash },
               { id: 'attendance', label: t.attendance },
+              { id: 'members', label: t.members },
+              { id: 'history', label: t.history },
             ] as const).map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
                 padding: '10px 20px', border: 'none', cursor: 'pointer',
@@ -359,19 +368,19 @@ export default function DashboardPage() {
           <div>
             {/* KPI Cards */}
             <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-              <KPICard 
-                icon={<TrendingUp size={22} />} 
-                label={t.totalRevenue} 
-                value={`${currency}${analytics.totalRevenue.toLocaleString()}`} 
-                sub={`${t.paid} ${currency}${analytics.paidRevenue.toLocaleString()}`} 
-                accent="#d4af37" 
+              <KPICard
+                icon={<TrendingUp size={22} />}
+                label={t.totalRevenue}
+                value={`${currency}${analytics.totalRevenue.toLocaleString()}`}
+                sub={`${t.paid} ${currency}${analytics.paidRevenue.toLocaleString()}`}
+                accent="#d4af37"
               />
-              <KPICard 
-                icon={<Coffee size={22} />} 
-                label={t.ordersTotal} 
-                value={analytics.totalOrders.toString()} 
-                sub={`${t.avgOrder} ${currency}${analytics.avgOrderValue}${t.perOrder}`} 
-                accent="#60a5fa" 
+              <KPICard
+                icon={<Coffee size={22} />}
+                label={t.ordersTotal}
+                value={analytics.totalOrders.toString()}
+                sub={`${t.avgOrder} ${currency}${analytics.avgOrderValue}${t.perOrder}`}
+                accent="#60a5fa"
               />
               <KPICard icon={<Users size={22} />} label={t.staffActive} value={activeNow.toString()} sub={`${Object.keys(summary).length} ${t.inPeriod}`} accent="#34d399" />
               <KPICard icon={<Clock size={22} />} label={t.workHours} value={totalWorkHours.toFixed(1)} sub={t.thisPeriod} accent="#f472b6" />
@@ -530,6 +539,13 @@ export default function DashboardPage() {
           <ManagerAttendancePro />
         )}
 
+        {!loading && activeTab === 'members' && (
+          <ManagerMembers />
+        )}
+
+        {!loading && activeTab === 'history' && (
+          <OrderHistory startDate={date} endDate={endDate} />
+        )}
       </div>
     </div>
   )

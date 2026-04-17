@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { SWEETNESS_OPTIONS } from '@/lib/menu'
-import { ShoppingCart, Plus, Minus, X, ChevronRight, CheckCircle, Loader2, Coffee, Eye } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, ChevronRight, CheckCircle, Loader2, Coffee, Eye, Globe } from 'lucide-react'
 import { useSettings } from '@/context/SettingsContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { useSearchParams } from 'next/navigation'
@@ -269,8 +269,16 @@ function OrderContent() {
                 </button>
               </div>
 
-              <button onClick={toggleLang} style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', padding: '8px 14px', borderRadius: '14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {c.langToggle}
+              <button 
+                onClick={toggleLang} 
+                className="thai-fix"
+                style={{ 
+                  background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', 
+                  padding: '8px 16px', borderRadius: '14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', 
+                  display: 'flex', alignItems: 'center', gap: '8px' 
+                }}
+              >
+                <Globe size={16} /> <span>{c.langToggle}</span>
               </button>
               {cartCount > 0 && (
                 <button
