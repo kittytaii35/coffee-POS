@@ -73,21 +73,33 @@ export default function POSPage() {
   useEffect(() => {
     fetchOrders()
 
-    // Auto-refresh every 5 minutes
+    // Auto-refresh every 15 seconds (reduced from 5m) as a robust fallback
     const interval = setInterval(() => {
       fetchOrders()
-    }, 5 * 60 * 1000)
+    }, 15 * 1000)
 
-    // Supabase realtime subscription (only if configured)
-    let channel: ReturnType<typeof supabase.channel> | null = null
+    // Supabase realtime subscription
+    let channel: any = null
     try {
       channel = supabase
-        .channel('orders')
+        .channel('public:orders')
         .on('postgres_changes', {
-          event: '*', schema: 'public', table: 'orders',
-        }, () => { fetchOrders() })
+          event: '*', 
+          schema: 'public', 
+          table: 'orders',
+        }, (payload) => {
+          console.log('Realtime update received:', payload)
+          fetchOrders()
+          
+          // If a new order arrives, play a subtle sound or notify (optional)
+          if (payload.eventType === 'INSERT') {
+            // New order!
+          }
+        })
         .subscribe()
-    } catch { /* Realtime not available without valid Supabase config */ }
+    } catch (err) { 
+      console.error('Realtime subscription error:', err)
+    }
 
     return () => {
       clearInterval(interval)
@@ -479,19 +491,30 @@ function OrderCard({
   const [loadingHistory, setLoadingHistory] = useState(false)
 
   const fetchGuestHistory = async () => {
-    if (!order.customer_line_id || guestHistory) return
+    // If we've already tried or name is missing, skip
+    if (guestHistory || !order.customer_name) return
+    
     setLoadingHistory(true)
     try {
-      const res = await fetch(`/api/orders?search=${order.customer_line_id}&limit=5`)
+      // Search by LINE ID if available, otherwise fallback to Customer Name
+      const searchQuery = order.customer_line_id || order.customer_name
+      const res = await fetch(`/api/orders?search=${encodeURIComponent(searchQuery)}&limit=10`)
       const data = await res.json()
+      
       if (data.orders) {
+        // Exclude the CURRENT order from the history count
+        const otherOrders = data.orders.filter((o: any) => o.id !== order.id)
+        
         setGuestHistory({
-          count: data.orders.length,
-          recent: data.orders.slice(0, 3)
+          count: otherOrders.length + 1, // Total lifetime orders including current
+          recent: otherOrders.slice(0, 3)
         })
       }
-    } catch (e) { console.error(e) }
-    setLoadingHistory(false)
+    } catch (e) {
+      console.error('History Fetch Error:', e)
+    } finally {
+      setLoadingHistory(false)
+    }
   }
 
   useEffect(() => {
@@ -519,12 +542,13 @@ function OrderCard({
               <p className="thai-fix" style={{ fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)', margin: 0 }}>
                 {order.customer_name}
               </p>
-              {order.customer_line_id && guestHistory && (
+              {guestHistory && (
                 <span style={{ 
                   padding: '2px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '800',
-                  background: guestHistory.count > 3 ? 'var(--gold)' : '#e2e8f0',
-                  color: guestHistory.count > 3 ? 'var(--coffee-dark)' : '#475569',
-                  whiteSpace: 'nowrap'
+                  background: guestHistory.count > 3 ? 'var(--gold)' : '#f3f4f6',
+                  color: guestHistory.count > 3 ? 'var(--coffee-dark)' : '#6b7280',
+                  whiteSpace: 'nowrap',
+                  border: guestHistory.count > 1 ? 'none' : '1px solid #e5e7eb'
                 }}>
                   {guestHistory.count > 1 ? `${t.orderCount} ${guestHistory.count} ${t.times}` : t.noPreviousOrders}
                 </span>

@@ -52,13 +52,35 @@ function OrderContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [lineUserId, setLineUserId] = useState<string | null>(null)
 
-  // Auto-populate from LIFF/Query
+  // Auto-populate from LIFF / Query Params
   useEffect(() => {
+    // 1. Initial check from URL (fallback)
     const luid = searchParams.get('line_user_id')
     const cname = searchParams.get('customer_name')
     if (luid) setLineUserId(luid)
     if (cname) setCustomerName(decodeURIComponent(cname))
     
+    // 2. Real LIFF integration
+    const initLiff = async () => {
+      try {
+        const liff = (await import('@line/liff')).default
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID || '' })
+        
+        if (liff.isLoggedIn()) {
+          const profile = await liff.getProfile()
+          if (profile.displayName) setCustomerName(profile.displayName)
+          if (profile.userId) setLineUserId(profile.userId)
+        } else if (liff.isInClient()) {
+          // If in LINE app but not logged in (rare for internal LIFF)
+          liff.login()
+        }
+      } catch (err) {
+        console.error('LIFF Init Error:', err)
+      }
+    }
+
+    initLiff()
+
     // Check localStorage for recent order
     const lastOrder = localStorage.getItem('last_order_id')
     if (lastOrder) {
