@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Calendar, Clock, Users, TrendingUp, Coffee,
   ChevronLeft, ChevronRight, Zap, AlertTriangle,
-  CheckCircle, Info, BarChart2, Award, Target, RefreshCw
+  CheckCircle, Info, BarChart2, Award, Target, RefreshCw, Globe
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useSettings } from '@/context/SettingsContext'
@@ -242,84 +242,85 @@ export default function DashboardPage() {
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', paddingBottom: '16px' }}>
             {/* Left – title */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1', minWidth: '200px' }}>
               <div style={{
-                width: '44px', height: '44px', borderRadius: '12px',
+                width: '40px', height: '40px', borderRadius: '12px',
                 background: 'linear-gradient(135deg, var(--gold), var(--gold-light))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
               }}>
-                <Coffee size={24} color="var(--coffee-dark)" />
+                <Coffee size={20} color="var(--coffee-dark)" />
               </div>
               <div>
-                <h1 className="thai-fix" style={{ color: 'white', fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px' }}>{shopName}</h1>
-                <p className="thai-fix" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>{shopSub}</p>
+                <h1 className="thai-fix" style={{ color: 'white', fontSize: '18px', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 }}>{shopName}</h1>
+                <p className="thai-fix" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', margin: 0 }}>{shopSub}</p>
               </div>
             </div>
 
             {/* Right – controls */}
-            <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              {/* Period */}
-              <div className="desktop-only" style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '4px' }}>
-                {(['daily', 'weekly', 'monthly', 'custom'] as const).map(p => {
-                  const labelMap: Record<string, string> = { daily: c.daily, weekly: c.weekly, monthly: c.monthly, custom: lang === 'th' ? 'เลือกช่วง' : 'Custom' }
-                  return (
-                    <button key={p} onClick={() => handlePeriodChange(p)} style={{
-                      padding: '6px 14px', borderRadius: '9px', border: 'none',
-                      background: period === p ? 'var(--gold)' : 'transparent',
-                      color: period === p ? 'var(--coffee-dark)' : 'rgba(245,230,211,0.7)',
-                      cursor: 'pointer', fontWeight: period === p ? '700' : '400',
-                      fontSize: '13px', transition: 'all 0.2s', textTransform: 'capitalize',
-                    }}>{labelMap[p]}</button>
-                  )
-                })}
-              </div>
-
-              {/* Date nav / Range Picker */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.08)', padding: '4px 12px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.15)' }}>
-                {period === 'daily' && (
-                  <button onClick={() => changeDate(-1)} style={dateArrowStyle}><ChevronLeft size={16} /></button>
-                )}
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ position: 'relative' }}>
-                    <span style={dateLabelStyle}>{lang === 'th' ? 'เริ่ม' : 'Start'}</span>
-                    <input type="date" value={date} onChange={e => { setDate(e.target.value); if (period !== 'custom') setPeriod('custom') }} style={dateInputStyle} />
-                  </div>
-                  
-                  {period !== 'daily' && (
-                    <>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontWeight: '300' }}>→</div>
-                      <div style={{ position: 'relative' }}>
-                        <span style={dateLabelStyle}>{lang === 'th' ? 'ถึง' : 'End'}</span>
-                        <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); if (period !== 'custom') setPeriod('custom') }} style={dateInputStyle} />
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {period === 'daily' && (
-                  <button onClick={() => changeDate(1)} style={dateArrowStyle}><ChevronRight size={16} /></button>
-                )}
-              </div>
-
-              {/* Lang toggle */}
-              <button onClick={toggleLang} style={{
-                background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)',
-                padding: '6px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', cursor: 'pointer'
-              }}>
-                {c.langToggle}
-              </button>
-
+            <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {/* Home Link */}
               <a href="/" style={{ textDecoration: 'none' }}>
                 <button style={{
                   background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)',
-                  padding: '6px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', cursor: 'pointer',
+                  padding: '6px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: '5px',
                 }}>
-                  🏠 {lang === 'th' ? 'หน้าหลัก' : 'Home'}
+                  🏠 <span className="desktop-only">{lang === 'th' ? 'หน้าหลัก' : 'Home'}</span>
                 </button>
               </a>
+              {/* Lang toggle */}
+              <button onClick={toggleLang} style={{
+                background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)',
+                padding: '6px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', cursor: 'pointer'
+              }}>
+                <Globe size={14} style={{ display: 'inline', marginRight: '4px' }} /> <span className="desktop-only">{c.langToggle}</span> {lang.toUpperCase()}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', paddingBottom: '16px', flexWrap: 'wrap' }}>
+            {/* Period Selection */}
+            <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '4px', overflowX: 'auto', maxWidth: '100%', scrollbarWidth: 'none' }}>
+              {(['daily', 'weekly', 'monthly', 'custom'] as const).map(p => {
+                const labelMap: Record<string, string> = { daily: c.daily, weekly: c.weekly, monthly: c.monthly, custom: lang === 'th' ? 'เลือกช่วง' : 'Custom' }
+                return (
+                  <button key={p} onClick={() => handlePeriodChange(p)} style={{
+                    padding: '6px 12px', borderRadius: '9px', border: 'none',
+                    background: period === p ? 'var(--gold)' : 'transparent',
+                    color: period === p ? 'var(--coffee-dark)' : 'rgba(245,230,211,0.7)',
+                    cursor: 'pointer', fontWeight: period === p ? '700' : '400',
+                    fontSize: '12px', transition: 'all 0.2s', whiteSpace: 'nowrap'
+                  }}>{labelMap[p]}</button>
+                )
+              })}
+            </div>
+
+            {/* Date Range Picker */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.15)', flex: '1', minWidth: '280px', justifyContent: 'center' }}>
+              {period === 'daily' && (
+                <button onClick={() => changeDate(-1)} style={dateArrowStyle}><ChevronLeft size={16} /></button>
+              )}
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ position: 'relative' }}>
+                  <span style={dateLabelStyle}>{lang === 'th' ? 'เริ่ม' : 'Start'}</span>
+                  <input type="date" value={date} onChange={e => { setDate(e.target.value); if (period !== 'custom') setPeriod('custom') }} style={dateInputStyle} />
+                </div>
+                
+                {period !== 'daily' && (
+                  <>
+                    <div style={{ color: 'rgba(255,255,255,0.3)', fontWeight: '300' }}>-</div>
+                    <div style={{ position: 'relative' }}>
+                      <span style={dateLabelStyle}>{lang === 'th' ? 'ถึง' : 'End'}</span>
+                      <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); if (period !== 'custom') setPeriod('custom') }} style={dateInputStyle} />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {period === 'daily' && (
+                <button onClick={() => changeDate(1)} style={dateArrowStyle}><ChevronRight size={16} /></button>
+              )}
             </div>
           </div>
 
@@ -354,22 +355,34 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {!loading && activeTab === 'overview' && a && (
+        {!loading && activeTab === 'overview' && analytics && (
           <div>
             {/* KPI Cards */}
             <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-              <KPICard icon={<TrendingUp size={22} />} label={t.totalRevenue} value={`${currency}${a.totalRevenue.toLocaleString()}`} sub={`${t.paid} ${currency}${a.paidRevenue.toLocaleString()}`} accent="#d4af37" />
-              <KPICard icon={<Coffee size={22} />} label={t.ordersTotal} value={a.totalOrders.toString()} sub={`${t.avgOrder} ${currency}${a.avgOrderValue}${t.perOrder}`} accent="#60a5fa" />
+              <KPICard 
+                icon={<TrendingUp size={22} />} 
+                label={t.totalRevenue} 
+                value={`${currency}${analytics.totalRevenue.toLocaleString()}`} 
+                sub={`${t.paid} ${currency}${analytics.paidRevenue.toLocaleString()}`} 
+                accent="#d4af37" 
+              />
+              <KPICard 
+                icon={<Coffee size={22} />} 
+                label={t.ordersTotal} 
+                value={analytics.totalOrders.toString()} 
+                sub={`${t.avgOrder} ${currency}${analytics.avgOrderValue}${t.perOrder}`} 
+                accent="#60a5fa" 
+              />
               <KPICard icon={<Users size={22} />} label={t.staffActive} value={activeNow.toString()} sub={`${Object.keys(summary).length} ${t.inPeriod}`} accent="#34d399" />
               <KPICard icon={<Clock size={22} />} label={t.workHours} value={totalWorkHours.toFixed(1)} sub={t.thisPeriod} accent="#f472b6" />
             </div>
 
             {/* Quick Insights row */}
-            {a.insights.length > 0 && (
+            {analytics.insights.length > 0 && (
               <div style={{ marginBottom: '28px' }}>
                 <SectionTitle icon="✨" title={t.quickInsights} />
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-                  {a.insights.map((ins, i) => {
+                  {analytics.insights.map((ins, i) => {
                     // map insight types to proper texts if possible..
                     // We'll trust the insights AI to send localized text, or simply use as is since it's an alert
                     const c = insightColors[ins.type]
@@ -396,9 +409,9 @@ export default function DashboardPage() {
               {/* Top Items */}
               <div className="card" style={{ padding: '20px' }}>
                 <SectionTitle icon="🔥" title={t.topItems} />
-                {a.topItems.length === 0
+                {analytics.topItems.length === 0
                   ? <EmptyState text={t.noData} />
-                  : a.topItems.map((item, i) => (
+                  : analytics.topItems.map((item, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                       <div style={{
                         width: '28px', height: '28px', borderRadius: '8px',
@@ -412,7 +425,7 @@ export default function DashboardPage() {
                           <div style={{
                             height: '6px', borderRadius: '4px',
                             background: 'linear-gradient(90deg, #d4af37, #22c55e)',
-                            width: `${Math.round((item.sold / (a.topItems[0]?.sold || 1)) * 100)}%`,
+                            width: `${Math.round((item.sold / (analytics.topItems[0]?.sold || 1)) * 100)}%`,
                           }} />
                         </div>
                       </div>
@@ -428,13 +441,13 @@ export default function DashboardPage() {
               {/* Payment types */}
               <div className="card" style={{ padding: '20px' }}>
                 <SectionTitle icon="💳" title={t.paymentBreakdown} />
-                {Object.keys(a.paymentBreakdown).length === 0
+                {Object.keys(analytics.paymentBreakdown).length === 0
                   ? <EmptyState text={t.noPaymentData} />
-                  : Object.entries(a.paymentBreakdown).map(([type, data]) => {
+                  : Object.entries(analytics.paymentBreakdown).map(([type, data]: [string, any]) => {
                     const typeLabelMap: Record<string, string> = { cash: t.cashPay, transfer: t.transferPay, promptpay: t.promptpayPay, unknown: t.unknownPay }
                     const label = typeLabelMap[type] || type
                     const icons: Record<string, string> = { cash: '💵', transfer: '🏦', promptpay: '📲', unknown: '❓' }
-                    const pct = a.totalOrders > 0 ? Math.round((data.count / a.totalOrders) * 100) : 0
+                    const pct = analytics.totalOrders > 0 ? Math.round((data.count / analytics.totalOrders) * 100) : 0
                     return (
                       <div key={type} style={{ marginBottom: '14px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
@@ -569,14 +582,14 @@ function ChipLegend({ color, label }: { color: string; label: string }) {
 }
 
 const dateInputStyle: React.CSSProperties = {
-  padding: '6px 8px 6px 42px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)',
-  background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', outline: 'none',
-  width: '145px', cursor: 'pointer'
+  padding: '6px 8px 6px 36px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '11px', outline: 'none',
+  width: '125px', cursor: 'pointer'
 }
 
 const dateLabelStyle: React.CSSProperties = {
-  position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
-  fontSize: '10px', color: 'var(--gold)', fontWeight: '800', pointerEvents: 'none', borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '6px'
+  position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)',
+  fontSize: '9px', color: 'var(--gold)', fontWeight: '800', pointerEvents: 'none', borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px'
 }
 
 const dateArrowStyle: React.CSSProperties = {
