@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react'
 import {
-  Users, Clock, AlertTriangle, CheckCircle, Search, Download, Calendar, Activity, Info
+  Users, Clock, AlertTriangle, CheckCircle, Search, Download, Calendar, Activity, Info, MapPin
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useLanguage } from '@/context/LanguageContext'
@@ -15,6 +15,84 @@ interface PROData {
   history: any[]
 }
 
+interface AttendanceDetailModalProps {
+  record: any
+  onClose: () => void
+  t: any
+  lang: string
+}
+
+function AttendanceDetailModal({ record, onClose, t, lang }: AttendanceDetailModalProps) {
+  if (!record) return null
+  
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div className="animate-slide-up" style={{ background: 'white', padding: '28px', borderRadius: '24px', maxWidth: '420px', width: '100%', position: 'relative', border: '1px solid #e8d5c4', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '16px', background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Info size={18} />
+        </button>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'rgba(212,175,55,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Users size={24} color="var(--gold)" />
+          </div>
+          <div>
+            <h3 className="thai-fix" style={{ fontSize: '18px', fontWeight: '900', color: 'var(--coffee-dark)', lineHeight: 1.2 }}>{record.employees?.name}</h3>
+            <p style={{ fontSize: '13px', color: 'var(--coffee-light)' }}>{new Date(record.check_in).toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ background: '#f9fafb', padding: '14px', borderRadius: '16px', border: '1px solid #f3f4f6' }}>
+              <p style={{ fontSize: '12px', color: 'var(--coffee-light)', marginBottom: '4px' }}>{t.colCheckIn}</p>
+              <p style={{ fontSize: '20px', fontWeight: '900', color: 'var(--coffee-dark)' }}>{new Date(record.check_in).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+            <div style={{ background: '#f9fafb', padding: '14px', borderRadius: '16px', border: '1px solid #f3f4f6' }}>
+              <p style={{ fontSize: '12px', color: 'var(--coffee-light)', marginBottom: '4px' }}>{t.colCheckOut}</p>
+              <p style={{ fontSize: '20px', fontWeight: '900', color: 'var(--coffee-dark)' }}>{record.check_out ? new Date(record.check_out).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-'}</p>
+            </div>
+          </div>
+
+          <div style={{ background: 'linear-gradient(135deg, var(--coffee-dark), var(--coffee-medium))', padding: '16px', borderRadius: '16px', textAlign: 'center' }}>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '4px' }}>{t.colHours}</p>
+            <p style={{ fontSize: '28px', fontWeight: '900', color: 'var(--gold)' }}>{record.work_hours?.toFixed(2) || '0.00'} <span style={{fontSize: '14px'}}>{t.hrs}</span></p>
+          </div>
+
+          {(record.latitude || record.check_out_latitude) && (
+            <div style={{ background: '#f0fdf4', padding: '14px', borderRadius: '16px', border: '1px solid #dcfce7' }}>
+              <p style={{ fontSize: '13px', fontWeight: '800', color: '#166534', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <MapPin size={14} /> Location Data
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
+                <div>
+                  <span style={{ color: '#15803d', fontWeight: '700' }}>In:</span> {record.latitude?.toFixed(5)}, {record.longitude?.toFixed(5)}
+                </div>
+                {record.check_out_latitude && (
+                  <div>
+                    <span style={{ color: '#15803d', fontWeight: '700' }}>Out:</span> {record.check_out_latitude?.toFixed(5)}, {record.check_out_longitude?.toFixed(5)}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {record.image_url && (
+            <div style={{ background: '#f9fafb', padding: '14px', borderRadius: '16px', border: '1px solid #f3f4f6' }}>
+              <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--coffee-dark)', marginBottom: '10px' }}>📸 Verification Photo</p>
+              <img src={record.image_url} alt="verification" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '12px', border: '1.5px solid #e8d5c4' }} />
+            </div>
+          )}
+        </div>
+
+        <button onClick={onClose} style={{ width: '100%', marginTop: '24px', padding: '14px', borderRadius: '14px', background: 'var(--coffee-dark)', color: 'white', border: 'none', fontWeight: '800', cursor: 'pointer', fontSize: '15px' }}>
+          {lang === 'th' ? 'ปิดหน้าต่าง' : 'Close Details'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function ManagerAttendancePro() {
   const { lang } = useLanguage()
   const t = translations[lang].attendancePro
@@ -23,6 +101,7 @@ export default function ManagerAttendancePro() {
   const [loading, setLoading] = useState(true)
   const [filterEmp, setFilterEmp] = useState('ALL')
   const [filterStatus, setFilterStatus] = useState('ALL')
+  const [selectedRecord, setSelectedRecord] = useState<any | null>(null)
 
   const fetchData = async () => {
     try {
@@ -176,9 +255,22 @@ export default function ManagerAttendancePro() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredHistory.slice(0, 15).map(r => (
-                    <tr key={r.id} style={{ borderBottom: '1px solid #f0e8df' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--coffee-dark)' }}>{r.employees?.name}</td>
+                  {filteredHistory.slice(0, 30).map(r => (
+                    <tr 
+                      key={r.id} 
+                      onClick={() => setSelectedRecord(r)}
+                      style={{ borderBottom: '1px solid #f0e8df', cursor: 'pointer', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#fafcfb'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--coffee-dark)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--coffee-dark)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
+                            {r.employees?.name?.charAt(0)}
+                          </div>
+                          {r.employees?.name}
+                        </div>
+                      </td>
                       <td style={{ padding: '12px 16px', color: 'var(--coffee-medium)' }}>{new Date(r.check_in).toLocaleDateString('th-TH', {day:'numeric', month:'short'})}</td>
                       <td style={{ padding: '12px 16px', fontWeight: '600' }}>{new Date(r.check_in).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' })}</td>
                       <td style={{ padding: '12px 16px' }}>{r.check_out ? new Date(r.check_out).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }) : '-'}</td>
@@ -196,13 +288,28 @@ export default function ManagerAttendancePro() {
                           {r.status.toUpperCase()}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>{r.latitude ? '✅' : '❌'}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                          <button style={{ background: 'none', border: 'none', color: 'var(--coffee-light)', cursor: 'pointer' }}>
+                            <Search size={16} />
+                          </button>
+                        </div>
+                      </td>
                       <td style={{ padding: '12px 16px', textAlign: 'center' }}>{r.image_url ? '✅' : '❌'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+
+            {selectedRecord && (
+              <AttendanceDetailModal 
+                record={selectedRecord} 
+                onClose={() => setSelectedRecord(null)} 
+                t={t} 
+                lang={lang}
+              />
+            )}
             {filteredHistory.length > 15 && (
               <div style={{ padding: '12px', textAlign: 'center', color: 'var(--coffee-light)', fontSize: '13px', background: '#fafcfb' }}>
                 {t.showingDesc} {filteredHistory.length} {t.recordsName}

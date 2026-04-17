@@ -174,14 +174,14 @@ export default function ProductManager() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
       {/* Header & Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+      <div className="header-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--coffee-dark)' }}>{t.menuTitle}</h2>
-          <p style={{ color: 'var(--coffee-light)', fontSize: '14px' }}>{t.menuDesc}</p>
+          <h2 className="thai-fix" style={{ fontSize: '22px', fontWeight: '900', color: 'var(--coffee-dark)' }}>{t.menuTitle}</h2>
+          <p className="thai-fix" style={{ color: 'var(--coffee-light)', fontSize: '14px' }}>{t.menuDesc}</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="header-actions" style={{ display: 'flex', gap: '10px' }}>
           <button onClick={() => setIsManagingCats(true)} style={btnSecondaryStyle}>
-            <Tag size={18} /> {lang === 'th' ? 'จัดการหมวดหมู่' : 'Manage Categories'}
+            <Tag size={18} /> {lang === 'th' ? 'หมวดหมู่' : 'Cats'}
           </button>
           <button onClick={() => handleEdit()} style={btnAddStyle}>
             <Plus size={18} /> {t.addBtn}
@@ -234,7 +234,7 @@ export default function ProductManager() {
 
       {/* Product List */}
       {viewMode === 'grid' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+        <div className="card-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
           {filtered.map(p => (
             <div key={p.id} style={cardStyle}>
               <div style={{ position: 'relative', height: '140px', background: '#f9fafb', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
@@ -260,8 +260,8 @@ export default function ProductManager() {
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <h4 style={{ fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)' }}>{p.name}</h4>
-                  <p style={{ fontSize: '13px', color: 'var(--coffee-light)', margin: '2px 0 8px' }}>{p.name_th}</p>
+                  <h4 className="thai-fix" style={{ fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)' }}>{p.name}</h4>
+                  <p className="thai-fix" style={{ fontSize: '13px', color: 'var(--coffee-light)', margin: '2px 0 8px' }}>{p.name_th}</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={catTagStyle}>
                       {categories.find(c => c.id === p.category_id)?.emoji} {lang === 'en' ? categories.find(c => c.id === p.category_id)?.label : categories.find(c => c.id === p.category_id)?.label_th}
@@ -340,7 +340,7 @@ export default function ProductManager() {
       {/* Managing Categories Modal */}
       {isManagingCats && (
         <div style={modalOverlay}>
-          <div style={{ ...modalContent, maxWidth: '500px' }}>
+          <div className="modal-full-mobile" style={{ ...modalContent, maxWidth: '500px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h3 style={{ fontSize: '20px', fontWeight: '900' }}>{lang === 'th' ? 'จัดการหมวดหมู่' : 'Manage Categories'}</h3>
               <button onClick={() => setIsManagingCats(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X /></button>
@@ -392,7 +392,7 @@ export default function ProductManager() {
       {/* Editor Modal */}
       {isEditing && (
         <div style={modalOverlay}>
-          <div style={modalContent}>
+          <div className="modal-full-mobile" style={modalContent}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h3 style={{ fontSize: '20px', fontWeight: '900' }}>
                 {currentProduct?.id ? t.editTitle : t.addTitle}
@@ -481,7 +481,8 @@ function ToggleField({ label, active, onToggle }: any) {
 const cardStyle = {
   background: 'white', borderRadius: '20px', padding: '16px',
   border: '1px solid #f0e8df', boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-  transition: 'transform 0.2s', cursor: 'default'
+  transition: 'transform 0.2s', cursor: 'default',
+  display: 'flex', flexDirection: 'column' as const
 }
 
 const catTagStyle = {

@@ -16,31 +16,34 @@ export default function ProductsPage() {
       {/* Header */}
       <div style={{
         background: 'linear-gradient(135deg, var(--coffee-dark), var(--coffee-brown))',
-        padding: '24px',
-        position: 'sticky', top: 0, zIndex: 50,
+        padding: '24px 20px',
+        position: 'sticky', top: 0, zIndex: 100,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
       }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Link href="/">
-            <button style={{
-              width: '40px', height: '40px', borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
-              color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
-            }} title={lang === 'th' ? 'หน้าหลัก' : 'Home'}>
-              <ArrowLeft size={20} />
-            </button>
-          </Link>
-          <div>
-            <h1 style={{ color: 'white', fontSize: '24px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Box size={28} color="var(--gold)" /> {t.menuTitle}
-            </h1>
-            <p style={{ color: 'rgba(245,230,211,0.7)', fontSize: '14px' }}>{t.menuDesc}</p>
+        <div className="header-content" style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <Link href="/">
+              <button style={{
+                width: '40px', height: '40px', borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
+                color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+              }} title={lang === 'th' ? 'หน้าหลัก' : 'Home'}>
+                <ArrowLeft size={20} />
+              </button>
+            </Link>
+            <div>
+              <h1 className="thai-fix" style={{ color: 'white', fontSize: '24px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Box size={28} color="var(--gold)" /> {t.menuTitle}
+              </h1>
+              <p style={{ color: 'rgba(245,230,211,0.7)', fontSize: '13px' }}>{t.menuDesc}</p>
+            </div>
           </div>
           
-          <div style={{ marginLeft: 'auto' }}>
+          <div className="header-actions">
             <button 
               onClick={toggleLang}
               style={{
-                background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', 
+                background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', 
                 padding: '8px 14px', borderRadius: '12px', fontSize: '13px', fontWeight: '700', cursor: 'pointer'
               }}
             >
@@ -50,8 +53,8 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 24px' }}>
-        <div className="card" style={{ background: 'white', borderRadius: '24px', padding: '24px', boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px 16px' }}>
+        <div className="card" style={{ padding: '24px', position: 'relative' }}>
           <ProductManager />
         </div>
       </div>

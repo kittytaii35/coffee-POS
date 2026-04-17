@@ -58,9 +58,9 @@ export default function GlobalSettingsManager() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '1000px' }}>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--coffee-dark)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div className="header-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+        <div style={{ flex: 1 }}>
+          <h2 className="thai-fix" style={{ fontSize: '24px', fontWeight: '900', color: 'var(--coffee-dark)', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Settings size={28} /> {t.globalConfig}
           </h2>
           <p style={{ color: 'var(--coffee-light)', fontSize: '14px', marginTop: '4px' }}>
@@ -85,7 +85,7 @@ export default function GlobalSettingsManager() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         
         {/* POS SETTINGS */}
         <SettingsCard 
@@ -242,10 +242,10 @@ export default function GlobalSettingsManager() {
         padding: '24px', background: 'rgba(212,175,55,0.05)', 
         borderRadius: '20px', border: '1px dashed var(--gold)',
         display: 'flex', alignItems: 'center', gap: '20px',
-        flexWrap: 'wrap'
+        flexWrap: 'wrap', justifyContent: 'center', textAlign: 'center' as const
       }}>
         <Shield size={40} color="var(--gold)" style={{ flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: '300px' }}>
+        <div style={{ flex: 1, minWidth: '250px' }}>
           <h4 style={{ fontWeight: '800', color: 'var(--coffee-dark)' }}>{t.securityNotice}</h4>
           <p style={{ fontSize: '13px', color: 'var(--coffee-light)' }}>
             {t.securityDesc}
@@ -260,18 +260,18 @@ export default function GlobalSettingsManager() {
 
 function SettingsCard({ icon, title, description, children, onSave, saving, saveText = 'Save' }: any) {
   return (
-    <div style={{ background: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.04)', border: '1px solid #f0e8df', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#fdf6f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="card" style={{ padding: '24px', border: '1px solid #f0e8df', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '16px', flex: 1, minWidth: '200px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#fdf6f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {icon}
           </div>
           <div>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--coffee-dark)' }}>{title}</h3>
+            <h3 className="thai-fix" style={{ fontSize: '17px', fontWeight: '800', color: 'var(--coffee-dark)' }}>{title}</h3>
             <p style={{ fontSize: '12px', color: 'var(--coffee-light)' }}>{description}</p>
           </div>
         </div>
-        <button onClick={onSave} disabled={saving} style={btnSaveStyle}>
+        <button onClick={onSave} disabled={saving} style={{ ...btnSaveStyle, width: 'auto' }}>
           {saving ? <RefreshCw size={14} className="spin" /> : <Save size={14} />} {saveText}
         </button>
       </div>

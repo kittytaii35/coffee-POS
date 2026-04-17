@@ -238,7 +238,7 @@ function OrderContent() {
               <Coffee size={22} color="var(--gold)" />
               <h1 style={{ color: 'white', fontSize: '20px', fontWeight: '800' }}>{shopName}</h1>
             </div>
-            <p style={{ color: 'rgba(245,230,211,0.6)', fontSize: '12px' }}>{currentTime}</p>
+            <p className="thai-fix" style={{ color: 'rgba(245,230,211,0.6)', fontSize: '12px' }}>{currentTime}</p>
           </div>
           {step === 'menu' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -294,12 +294,9 @@ function OrderContent() {
 
         {/* Category tabs */}
         {step === 'menu' && (
-          <div style={{
+          <div className="tab-scroll" style={{
             display: 'flex', gap: '8px', marginTop: '20px',
-            overflowX: 'auto', paddingBottom: '4px',
             maxWidth: '1200px', margin: '20px auto 0',
-            scrollbarWidth: 'none', // Firefox
-            msOverflowStyle: 'none', // IE/Edge
           }}>
             <button
                 onClick={() => setActiveCategory('all')}
@@ -361,7 +358,7 @@ function OrderContent() {
                     backgroundColor: '#f9f5f0'
                   }} />
                   <div style={{ padding: '12px' }}>
-                    <p style={{ fontWeight: '700', fontSize: '14px', color: 'var(--coffee-dark)', marginBottom: '2px' }}>
+                    <p className="thai-fix" style={{ fontWeight: '700', fontSize: '14px', color: 'var(--coffee-dark)', marginBottom: '2px' }}>
                       {lang === 'th' ? item.name_th : item.name}
                     </p>
                     <p style={{ fontSize: '11px', color: 'var(--coffee-light)', marginBottom: '8px' }}>
@@ -599,7 +596,7 @@ function OrderContent() {
           }}
         >
           <div
-            className="animate-slide-up"
+            className="animate-slide-up modal-full-mobile"
             onClick={e => e.stopPropagation()}
             style={{
               background: 'white', borderRadius: '24px 24px 0 0',

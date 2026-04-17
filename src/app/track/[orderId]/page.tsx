@@ -14,7 +14,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
   const { orderId } = use(params)
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
-  const { lang } = useLanguage()
+  const { lang, toggleLang } = useLanguage()
   const t = translations[lang].common
   const tr = translations[lang].order.track
 
@@ -94,13 +94,32 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
         borderBottomRightRadius: '32px',
         position: 'relative'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <Link href="/order" style={{ color: 'white', background: 'rgba(255,255,255,0.1)', padding: '8px', borderRadius: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+          <Link href="/order" style={{ color: 'white', background: 'rgba(255,255,255,0.15)', padding: '10px', borderRadius: '14px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <ArrowLeft size={20} />
           </Link>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>{tr.orderId}</p>
-            <h1 style={{ fontSize: '18px', fontWeight: '800' }}>{order.order_id || `#${order.id.slice(-8).toUpperCase()}`}</h1>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button 
+              onClick={toggleLang}
+              style={{ 
+                background: 'rgba(255,255,255,0.15)', 
+                color: 'white', 
+                border: '1px solid rgba(255,255,255,0.2)', 
+                padding: '8px 14px', 
+                borderRadius: '14px', 
+                fontSize: '13px', 
+                fontWeight: '700', 
+                cursor: 'pointer',
+                backdropFilter: 'blur(10px)'
+              }}
+            >
+              {translations[lang].common.langToggle}
+            </button>
+            <div style={{ textAlign: 'right', marginLeft: '8px' }}>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{tr.orderId}</p>
+              <h1 style={{ fontSize: '18px', fontWeight: '900', letterSpacing: '0.5px' }}>{order.order_id || `#${order.id.slice(-8).toUpperCase()}`}</h1>
+            </div>
           </div>
         </div>
 
@@ -110,16 +129,26 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
               ❌ {tr.cancelled}
             </div>
           ) : (
-            <div style={{ display: 'inline-flex', padding: '12px 28px', borderRadius: '24px', background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', alignItems: 'center', gap: '12px' }}>
-              <div style={{ position: 'relative' }}>
-                <Coffee size={32} color="var(--gold)" />
-                <div style={{ position: 'absolute', top: -4, right: -4, width: '12px', height: '12px', borderRadius: '50%', background: '#22c55e', border: '2px solid white', animation: 'pulse-glow 2s infinite' }} />
+            <div style={{ 
+              display: 'inline-flex', 
+              padding: '16px 28px', 
+              borderRadius: '28px', 
+              background: 'rgba(255,255,255,0.15)', 
+              backdropFilter: 'blur(12px)', 
+              alignItems: 'center', 
+              gap: '16px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+            }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Coffee size={36} color="var(--gold)" />
+                <div style={{ position: 'absolute', top: -2, right: -2, width: '12px', height: '12px', borderRadius: '50%', background: '#22c55e', border: '2px solid white', boxShadow: '0 0 8px rgba(34,197,94,0.5)' }} />
               </div>
               <div style={{ textAlign: 'left' }}>
-                <p style={{ fontSize: '20px', fontWeight: '900', color: 'var(--gold)', lineHeight: 1.1 }}>
+                <p style={{ fontSize: '22px', fontWeight: '900', color: 'var(--gold)', lineHeight: 1.3, marginBottom: '2px' }}>
                   {currentStepData?.label}
                 </p>
-                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: '500', lineHeight: 1.2 }}>
                   {currentStepData?.desc}
                 </p>
               </div>
@@ -129,7 +158,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
       </div>
 
       {/* Content */}
-      <div style={{ padding: '0 20px', marginTop: '-30px' }}>
+      <div style={{ padding: '0 20px', marginTop: '-24px', position: 'relative', zIndex: 5 }}>
         {!isCancelled && (
           <div style={{ background: 'white', borderRadius: '24px', padding: '24px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
@@ -158,9 +187,9 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
                       <StepIcon size={16} />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <h4 style={{ fontSize: '15px', fontWeight: isCurrent ? '800' : '600', color: isCurrent ? 'var(--coffee-dark)' : isActive ? 'var(--coffee-medium)' : '#94a3b8', lineHeight: 1.2 }}>
+                      <h4 style={{ fontSize: '15px', fontWeight: isCurrent ? '800' : '600', color: isCurrent ? 'var(--coffee-dark)' : isActive ? 'var(--coffee-medium)' : '#94a3b8', lineHeight: 1.4 }}>
                         {stepData.label}
-                        <span style={{ display: 'block', fontSize: '11px', fontWeight: '400', opacity: 0.7 }}>{stepData.labelEn}</span>
+                        <span style={{ display: 'block', fontSize: '11px', fontWeight: '400', opacity: 0.7, lineHeight: 1.2 }}>{stepData.labelEn}</span>
                       </h4>
                       {isCurrent && (
                         <p style={{ fontSize: '11px', color: 'rgba(0,0,0,0.4)', marginTop: '4px', background: '#f8fafc', padding: '4px 8px', borderRadius: '6px', display: 'inline-block' }}>

@@ -160,7 +160,12 @@ export const translations = {
       hoursOfTarget: 'ชั่วโมง จากเป้า',
       hrs: 'ชม.',
       last7days: '7 วันล่าสุด',
-      active: 'Active'
+      active: 'Active',
+      historyDetail: 'รายละเอียดการเข้างาน',
+      lat: 'ละติจูด',
+      lng: 'ลองจิจูด',
+      photo: 'รูปถ่าย',
+      distance: 'ระยะห่าง'
     },
     dashboard: {
       title: 'ผู้จัดการ',
@@ -179,7 +184,7 @@ export const translations = {
       staffActive: 'พนักงานตอนนี้',
       inPeriod: 'คน ในช่วงเวลานี้',
       workHours: 'ชั่วโมงทำงาน',
-      thisPeriod: 'รวมในระยะเวลันี้',
+      thisPeriod: 'รวมในระยะเวลานี้',
       quickInsights: '✨ ข้อมูลเชิงลึก',
       topItems: '🔥 สินค้าขายดี',
       noData: 'ยังไม่มีข้อมูล',
@@ -210,7 +215,7 @@ export const translations = {
       noOneWorking: 'ไม่มีพนักงานทำงานอยู่ในขณะนี้',
       in: 'เข้าเวลา:',
       hrs: 'ชม.',
-      attendanceRecords: 'บันทึกเวลาการรักษา',
+      attendanceRecords: 'บันทึกเวลาการทำงาน',
       allEmployees: 'พนักงานทั้งหมด',
       allStatus: 'สถานะทั้งหมด',
       statusWorking: 'กำลังทำ',
@@ -502,7 +507,12 @@ export const translations = {
       hoursOfTarget: 'hours out of',
       hrs: 'hrs',
       last7days: 'Last 7 Days',
-      active: 'Active'
+      active: 'Active',
+      historyDetail: 'Attendance Detail',
+      lat: 'Latitude',
+      lng: 'Longitude',
+      photo: 'Photo',
+      distance: 'Distance'
     },
     dashboard: {
       title: 'Manager',

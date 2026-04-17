@@ -217,8 +217,8 @@ export default function POSPage() {
             <Coffee size={24} color="var(--gold)" />
             <h1 style={{ color: 'white', fontSize: '22px', fontWeight: '800' }}>Queen Coffee</h1>
           </div>
-          <p style={{ color: 'rgba(245,230,211,0.5)', fontSize: '12px' }}>{t.system}</p>
-          <p style={{ color: 'var(--gold)', fontSize: '13px', fontWeight: '600', marginTop: '4px' }}>
+          <p className="thai-fix" style={{ color: 'rgba(245,230,211,0.5)', fontSize: '12px' }}>{t.system}</p>
+          <p className="thai-fix" style={{ color: 'var(--gold)', fontSize: '13px', fontWeight: '600', marginTop: '4px' }}>
             {currentTime}
           </p>
         </div>
@@ -295,7 +295,7 @@ export default function POSPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           position: 'sticky', top: 0, zIndex: 40,
         }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--coffee-dark)' }}>
+          <h2 className="thai-fix" style={{ fontSize: '20px', fontWeight: '800', color: 'var(--coffee-dark)' }}>
             {t.orders} · {filteredOrders.length}
           </h2>
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -375,8 +375,8 @@ export default function POSPage() {
               width: '100%', maxWidth: '440px',
             }}
           >
-            <h3 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '4px' }}>{t.payment}</h3>
-            <p style={{ color: 'var(--coffee-light)', fontSize: '14px', marginBottom: '20px' }}>
+            <h3 className="thai-fix" style={{ fontSize: '22px', fontWeight: '800', marginBottom: '4px' }}>{t.payment}</h3>
+            <p className="thai-fix" style={{ color: 'var(--coffee-light)', fontSize: '14px', marginBottom: '20px' }}>
               {t.orders} #{selectedOrder.id.slice(-8).toUpperCase()} · {selectedOrder.customer_name}
             </p>
 
@@ -488,7 +488,7 @@ function OrderCard({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
           <div>
-            <p style={{ fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)' }}>
+            <p className="thai-fix" style={{ fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)' }}>
               {order.customer_name}
             </p>
             <p style={{ fontSize: '12px', color: 'var(--coffee-light)' }}>

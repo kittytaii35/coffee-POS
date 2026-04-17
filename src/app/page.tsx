@@ -96,7 +96,8 @@ export default function HomePage() {
       }} />
 
       {/* Logo */}
-      <div className="absolute top-4 right-4 z-50">
+      {/* Header-like actions */}
+      <div className="header-content" style={{ position: 'absolute', top: '24px', left: '24px', right: '24px', display: 'flex', justifyContent: 'flex-end', zIndex: 100 }}>
         <button 
           onClick={toggleLang}
           style={{
@@ -108,33 +109,33 @@ export default function HomePage() {
         </button>
       </div>
 
-      <div className="animate-fade-in" style={{ textAlign: 'center', marginBottom: '48px' }}>
+      <div className="animate-fade-in" style={{ textAlign: 'center', marginBottom: '48px', padding: '0 20px' }}>
         <div style={{
           fontSize: '72px', marginBottom: '8px',
           filter: 'drop-shadow(0 4px 12px rgba(212,175,55,0.4))',
         }}>
           👑
         </div>
-        <h1 style={{
+        <h1 className="thai-fix" style={{
           fontSize: '48px', fontWeight: '800', color: 'white',
           letterSpacing: '-1px', marginBottom: '8px',
         }}>
           {t.home.title}
         </h1>
-        <p style={{ color: 'rgba(245,230,211,0.7)', fontSize: '18px', fontWeight: '400' }}>
+        <p className="thai-fix" style={{ color: 'rgba(245,230,211,0.7)', fontSize: '18px', fontWeight: '400' }}>
           {t.home.subtitle}
         </p>
       </div>
 
       {/* Navigation cards */}
       <div
-        className="animate-slide-up"
+        className="animate-slide-up kpi-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '16px',
           width: '100%',
-          maxWidth: '800px',
+          maxWidth: '900px',
         }}
       >
         <NavCard
@@ -237,7 +238,7 @@ export default function HomePage() {
             }}>
               <ShieldAlert size={28} color="#dc2626" />
             </div>
-            <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--coffee-dark)', marginBottom: '8px' }}>
+            <h2 className="thai-fix" style={{ fontSize: '22px', fontWeight: '800', color: 'var(--coffee-dark)', marginBottom: '8px' }}>
               {lang === 'th' ? 'จำกัดสิทธิ์เข้าถึง' : 'Access Restricted'}
             </h2>
             <p style={{ color: 'var(--coffee-light)', fontSize: '13px', marginBottom: '24px', lineHeight: '1.5' }}>

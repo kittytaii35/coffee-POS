@@ -159,41 +159,42 @@ export default function EmployeesPage() {
       {/* ── Header ── */}
       <div style={{
         background: 'linear-gradient(135deg, var(--coffee-dark) 0%, var(--coffee-brown) 100%)',
-        padding: '24px',
+        padding: '24px 20px',
         position: 'sticky', top: 0, zIndex: 50,
         boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
       }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <Link href="/">
-            <button style={{
-              width: '40px', height: '40px', borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
-              color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', flexShrink: 0,
-            }} title={lang === 'th' ? 'หน้าหลัก' : 'Home'}>
-              <ArrowLeft size={20} />
-            </button>
-          </Link>
-
+        <div className="header-content" style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-            <div style={{
-              width: '44px', height: '44px', borderRadius: '14px',
-              background: 'linear-gradient(135deg, var(--gold), var(--gold-light))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <Users size={22} color="var(--coffee-dark)" />
-            </div>
-            <div>
-              <h1 style={{ color: 'white', fontSize: '20px', fontWeight: '800' }}>
-                {lang === 'th' ? 'จัดการพนักงาน' : 'Employee Management'}
-              </h1>
-              <p style={{ color: 'rgba(245,230,211,0.6)', fontSize: '13px' }}>
-                {lang === 'th' ? `${employees.length} คน` : `${employees.length} staff members`}
-              </p>
+            <Link href="/">
+              <button style={{
+                width: '40px', height: '40px', borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
+                color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0,
+              }} title={lang === 'th' ? 'หน้าหลัก' : 'Home'}>
+                <ArrowLeft size={20} />
+              </button>
+            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '44px', height: '44px', borderRadius: '14px',
+                background: 'linear-gradient(135deg, var(--gold), var(--gold-light))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <Users size={22} color="var(--coffee-dark)" />
+              </div>
+              <div>
+                <h1 className="thai-fix" style={{ color: 'white', fontSize: '20px', fontWeight: '800' }}>
+                  {lang === 'th' ? 'จัดการพนักงาน' : 'Employee Management'}
+                </h1>
+                <p style={{ color: 'rgba(245,230,211,0.6)', fontSize: '13px' }}>
+                  {lang === 'th' ? `${employees.length} คน` : `${employees.length} staff members`}
+                </p>
+              </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="header-actions" style={{ display: 'flex', gap: '8px' }}>
             <button onClick={toggleLang} style={{
               background: 'rgba(255,255,255,0.15)', color: 'white',
               border: '1px solid rgba(255,255,255,0.25)', padding: '8px 14px',
@@ -276,93 +277,86 @@ export default function EmployeesPage() {
             )}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {filtered.map(emp => {
-              const rc = ROLE_COLORS[emp.role] || ROLE_COLORS['Part-time']
-              return (
-                <div key={emp.id} style={{
-                  background: 'white', borderRadius: '18px',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                  border: '1px solid #f0e8df',
-                  overflow: 'hidden',
-                  transition: 'box-shadow 0.2s',
+        <div className="card-grid" style={{ 
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+          gap: '20px' 
+        }}>
+          {filtered.map(emp => {
+            const rc = ROLE_COLORS[emp.role] || ROLE_COLORS['Part-time']
+            return (
+              <div key={emp.id} className="card" style={{
+                borderRadius: '18px',
+                border: '1px solid #f0e8df',
+                overflow: 'hidden',
+                transition: 'box-shadow 0.2s',
+                padding: '18px 20px',
+                display: 'flex', alignItems: 'center', gap: '16px',
+              }}>
+                {/* Avatar */}
+                <div style={{
+                  width: '52px', height: '52px', borderRadius: '16px', flexShrink: 0,
+                  background: 'linear-gradient(135deg, var(--coffee-medium), var(--gold))',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'white', fontSize: '20px', fontWeight: '900',
                 }}>
-                  <div style={{
-                    padding: '18px 20px',
-                    display: 'flex', alignItems: 'center', gap: '16px',
-                  }}>
-                    {/* Avatar */}
-                    <div style={{
-                      width: '52px', height: '52px', borderRadius: '16px', flexShrink: 0,
-                      background: 'linear-gradient(135deg, var(--coffee-medium), var(--gold))',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: 'white', fontSize: '20px', fontWeight: '900',
+                  {emp.name.charAt(0).toUpperCase()}
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p className="thai-fix" style={{ fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)', marginBottom: '4px' }}>
+                    {emp.name}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{
+                      background: rc.bg, color: rc.color,
+                      padding: '3px 10px', borderRadius: '20px',
+                      fontSize: '12px', fontWeight: '700',
                     }}>
-                      {emp.name.charAt(0).toUpperCase()}
-                    </div>
-
-                    {/* Info */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: '800', fontSize: '16px', color: 'var(--coffee-dark)', marginBottom: '4px' }}>
-                        {emp.name}
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{
-                          background: rc.bg, color: rc.color,
-                          padding: '3px 10px', borderRadius: '20px',
-                          fontSize: '12px', fontWeight: '700',
-                        }}>
-                          {emp.role}
-                        </span>
-                        <span style={{
-                          background: '#f0f9ff', color: '#0369a1',
-                          padding: '3px 10px', borderRadius: '20px',
-                          fontSize: '12px', fontWeight: '600',
-                          display: 'flex', alignItems: 'center', gap: '4px',
-                        }}>
-                          <ShieldCheck size={11} />
-                          PIN: {emp.pin_code}
-                        </span>
-                        <span style={{ fontSize: '11px', color: 'var(--coffee-light)' }}>
-                          {lang === 'th' ? 'เพิ่มเมื่อ: ' : 'Added: '}
-                          {new Date(emp.created_at).toLocaleDateString('th-TH', {
-                            day: 'numeric', month: 'short', year: 'numeric'
-                          })}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                      <button
-                        onClick={() => openEdit(emp)}
-                        title={lang === 'th' ? 'แก้ไข' : 'Edit'}
-                        style={{
-                          width: '38px', height: '38px', borderRadius: '10px',
-                          border: '1.5px solid #e8d5c4', background: 'white',
-                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: 'var(--coffee-medium)',
-                        }}>
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeleteId(emp.id)}
-                        title={lang === 'th' ? 'ลบ' : 'Delete'}
-                        disabled={deletingId === emp.id}
-                        style={{
-                          width: '38px', height: '38px', borderRadius: '10px',
-                          border: '1.5px solid #fca5a5', background: '#fff5f5',
-                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: '#dc2626', opacity: deletingId === emp.id ? 0.5 : 1,
-                        }}>
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+                      {emp.role}
+                    </span>
+                    <span style={{
+                      background: '#f0f9ff', color: '#0369a1',
+                      padding: '3px 10px', borderRadius: '20px',
+                      fontSize: '12px', fontWeight: '600',
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                    }}>
+                      <ShieldCheck size={11} />
+                      PIN: {emp.pin_code}
+                    </span>
                   </div>
                 </div>
-              )
-            })}
-          </div>
+
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                  <button
+                    onClick={() => openEdit(emp)}
+                    title={lang === 'th' ? 'แก้ไข' : 'Edit'}
+                    style={{
+                      width: '38px', height: '38px', borderRadius: '10px',
+                      border: '1.5px solid #e8d5c4', background: 'white',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--coffee-medium)',
+                    }}>
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteId(emp.id)}
+                    title={lang === 'th' ? 'ลบ' : 'Delete'}
+                    disabled={deletingId === emp.id}
+                    style={{
+                      width: '38px', height: '38px', borderRadius: '10px',
+                      border: '1.5px solid #fca5a5', background: '#fff5f5',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#dc2626', opacity: deletingId === emp.id ? 0.5 : 1,
+                    }}>
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
         )}
       </div>
 
@@ -378,11 +372,12 @@ export default function EmployeesPage() {
         >
           <div
             onClick={e => e.stopPropagation()}
-            className="animate-slide-up"
+            className="animate-slide-up modal-full-mobile"
             style={{
               background: 'white', borderRadius: '24px', padding: '32px',
               width: '100%', maxWidth: '440px',
               boxShadow: '0 24px 80px rgba(0,0,0,0.25)',
+              overflowY: 'auto'
             }}
           >
             {/* Modal header */}

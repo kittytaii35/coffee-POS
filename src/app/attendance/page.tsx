@@ -52,7 +52,7 @@ export default function AttendancePage() {
   const t = translations[lang].attendance
   const c = translations[lang].common
 
-  const { settings, loading: settingsLoading } = useSettings()
+  const { settings } = useSettings()
   const shopLat = settings.attendance.shop_lat
   const shopLng = settings.attendance.shop_lng
   const shopName = settings.receipt.header
@@ -72,6 +72,8 @@ export default function AttendancePage() {
   const [currentTime, setCurrentTime] = useState('')
   const [currentDate, setCurrentDate] = useState('')
   const [workTimer, setWorkTimer] = useState('')
+  const [activeAction, setActiveAction] = useState<'checkin' | 'checkout' | null>(null)
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null)
 
   // Anti-cheat
   const [antiCheatStep, setAntiCheatStep] = useState<AntiCheatStep>('idle')
@@ -113,7 +115,7 @@ export default function AttendancePage() {
   // Cleanup camera
   useEffect(() => () => { streamRef.current?.getTracks().forEach(t => t.stop()) }, [])
 
-  // Fetch history & summary when entering main screen or switching tabs
+  // Fetch history & summary
   const fetchHistoryAndSummary = useCallback(async (emp: Employee) => {
     setHistoryLoading(true)
     try {
@@ -151,7 +153,8 @@ export default function AttendancePage() {
   }
 
   // ── GPS Step ─────────────────────────────────────────────────
-  const startCheckIn = useCallback(async () => {
+  const startAntiCheat = useCallback(async (action: 'checkin' | 'checkout') => {
+    setActiveAction(action)
     setAntiCheatStep('gps'); setGpsStatus('loading'); setError('')
     if (!navigator.geolocation) {
       setGpsStatus('ok'); setCapturedCoords(null)
@@ -162,19 +165,13 @@ export default function AttendancePage() {
         const { latitude: lat, longitude: lng } = pos.coords
         const dist = haversineMeters(lat, lng, shopLat, shopLng)
         setGpsDistance(dist); setCapturedCoords({ lat, lng }); setGpsStatus('ok')
-        
-        // Anti-cheat strict logic: if dist > allowedRadius, fail it or warn
-        if (dist > allowedRadius) {
-           setError(`${t.tooFar} (${Math.round(dist)} m)`)
-           // Optionally block here if strict, or just let them continue with warning
-        }
-
+        if (dist > allowedRadius) setError(`${t.tooFar} (${Math.round(dist)} m)`)
         setTimeout(() => setAntiCheatStep('camera'), 800)
       },
       () => { setGpsStatus('fail'); setCapturedCoords(null); setTimeout(() => setAntiCheatStep('camera'), 800) },
       { timeout: 10000, enableHighAccuracy: true }
     )
-  }, [shopLat, shopLng, allowedRadius])
+  }, [shopLat, shopLng, allowedRadius, t.tooFar])
 
   // ── Camera Step ──────────────────────────────────────────────
   const openCamera = useCallback(async () => {
@@ -207,43 +204,34 @@ export default function AttendancePage() {
     setCapturedImage(null); setCameraStatus('idle'); setAntiCheatStep('camera')
   }, [])
 
-  // ── Submit check-in ──────────────────────────────────────────
-  const submitCheckIn = useCallback(async () => {
-    if (!employee) return
+  const submitAntiCheat = useCallback(async () => {
+    if (!employee || !activeAction) return
     setLoading(true); setError(''); setSuccess('')
     try {
-      const res  = await fetch('/api/checkin', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employee_id: employee.id, latitude: capturedCoords?.lat, longitude: capturedCoords?.lng, image_url: capturedImage }),
-      })
+      const endpoint = activeAction === 'checkin' ? '/api/checkin' : '/api/checkout'
+      const payload = activeAction === 'checkin' 
+        ? { employee_id: employee.id, latitude: capturedCoords?.lat, longitude: capturedCoords?.lng, image_url: capturedImage }
+        : { employee_id: employee.id, latitude: capturedCoords?.lat, longitude: capturedCoords?.lng, check_out_image: capturedImage }
+
+      const res  = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json()
       if (data.success) {
         setAttendance(data.attendance)
-        setSuccess(`${t.checkInSuccess} ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`)
-        setAntiCheatStep('idle'); setCapturedImage(null); setCapturedCoords(null); setGpsStatus('idle'); setCameraStatus('idle')
+        if (activeAction === 'checkin') {
+          setSuccess(`${t.checkInSuccess} ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`)
+        } else {
+          setSuccess(`${t.checkOutSuccess} ${parseFloat(data.work_hours).toFixed(1)} ${t.hrs}`)
+          setTimeout(() => { setScreen('pin'); setEmployee(null); setAttendance(null); setPin('') }, 4000)
+        }
+        setAntiCheatStep('idle'); setCapturedImage(null); setCapturedCoords(null); setGpsStatus('idle'); setCameraStatus('idle'); setActiveAction(null)
         fetchHistoryAndSummary(employee)
         setTimeout(() => setSuccess(''), 4000)
       } else { setError(data.error || t.connectFail); setAntiCheatStep('idle') }
     } catch { setError(t.connectFail); setAntiCheatStep('idle') }
     finally { setLoading(false) }
-  }, [employee, capturedCoords, capturedImage, fetchHistoryAndSummary])
+  }, [employee, activeAction, capturedCoords, capturedImage, fetchHistoryAndSummary, t])
 
-  // ── Check-out (after confirm) ────────────────────────────────
-  const handleCheckOut = async () => {
-    if (!employee) return
-    setShowConfirmOut(false); setLoading(true); setError(''); setSuccess('')
-    try {
-      const res  = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employee_id: employee.id }) })
-      const data = await res.json()
-      if (data.success) {
-        setAttendance(data.attendance)
-        setSuccess(`${t.checkOutSuccess} ${parseFloat(data.work_hours).toFixed(1)} ${t.hrs}`)
-        fetchHistoryAndSummary(employee)
-        setTimeout(() => { setSuccess(''); setScreen('pin'); setEmployee(null); setAttendance(null); setPin('') }, 4000)
-      } else { setError(data.error || t.connectFail) }
-    } catch { setError(t.connectFail) }
-    finally { setLoading(false) }
-  }
+  const handleCheckOut = () => { setShowConfirmOut(false); startAntiCheat('checkout') }
 
   const cancelAntiCheat = () => {
     streamRef.current?.getTracks().forEach(t => t.stop())
@@ -253,408 +241,181 @@ export default function AttendancePage() {
 
   const isWorking = attendance?.status === 'working'
   const isDone    = attendance?.status === 'done'
+  const currentHrsWorked = attendance && isWorking ? (Date.now() - new Date(attendance.check_in).getTime()) / 3600000 : 0
 
-  // Current worked hours (for confirm modal)
-  const currentHrsWorked = attendance && isWorking
-    ? (Date.now() - new Date(attendance.check_in).getTime()) / 3600000
-    : 0
-
-  // ── RENDER ───────────────────────────────────────────────────
   return (
     <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(160deg, var(--coffee-dark) 0%, var(--coffee-brown) 60%, var(--coffee-medium) 100%)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: screen === 'pin' ? 'center' : 'flex-start',
-      padding: screen === 'pin' ? '24px' : '0',
-      position: 'relative', overflow: 'hidden',
+      minHeight: '100vh', background: 'linear-gradient(160deg, var(--coffee-dark) 0%, var(--coffee-brown) 60%, var(--coffee-medium) 100%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: screen === 'pin' ? 'center' : 'flex-start',
+      padding: screen === 'pin' ? '24px' : '0', position: 'relative', overflow: 'hidden'
     }}>
-      {/* Glow */}
       <div style={{ position: 'absolute', top: '-120px', right: '-120px', width: '480px', height: '480px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(212,175,55,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-      {/* ══════════════ PIN SCREEN ══════════════ */}
       {screen === 'pin' && (
         <>
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginBottom: '4px' }}>{currentDate}</p>
-            <h1 style={{ color: 'white', fontSize: '54px', fontWeight: '900', letterSpacing: '3px', fontVariantNumeric: 'tabular-nums', textShadow: '0 4px 24px rgba(0,0,0,0.4)', lineHeight: 1 }}>{currentTime}</h1>
-            <p style={{ color: 'rgba(212,175,55,0.7)', fontSize: '14px', fontWeight: '600', marginTop: '4px' }}>👑 {shopName}</p>
+            <p className="thai-fix" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginBottom: '4px' }}>{currentDate}</p>
+            <h1 style={{ color: 'white', fontSize: '54px', fontWeight: '900', letterSpacing: '3px', lineHeight: 1 }}>{currentTime}</h1>
+            <p className="thai-fix" style={{ color: 'rgba(212,175,55,0.7)', fontSize: '14px', fontWeight: '600' }}>👑 {shopName}</p>
           </div>
           <div className="animate-slide-up glass" style={{ padding: '32px', borderRadius: '28px', width: '100%', maxWidth: '340px', textAlign: 'center', position: 'relative' }}>
-            <a href="/" style={{ position: 'absolute', top: '16px', left: '16px', textDecoration: 'none' }}>
-              <button style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', padding: '6px 10px', color: 'var(--coffee-dark)', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                🏠 {lang === 'th' ? 'กลับ' : 'Back'}
-              </button>
-            </a>
-            <button onClick={toggleLang} style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', padding: '6px 12px', color: 'var(--coffee-dark)', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Globe size={14} /> {c.langToggle.replace('🌍', '').trim()}
-            </button>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--coffee-medium), var(--gold))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-              <User size={26} color="white" />
-            </div>
-            <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--coffee-dark)', marginBottom: '4px' }}>{t.pinTitle}</h2>
-            <p style={{ color: 'var(--coffee-medium)', fontSize: '14px', marginBottom: '24px' }}>{t.pinSubtitle}</p>
-            {/* Dots */}
+            <a href="/" style={{ position: 'absolute', top: '16px', left: '16px' }}><button style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', padding: '6px 10px', color: 'var(--coffee-dark)', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>🏠 {lang === 'th' ? 'กลับ' : 'Back'}</button></a>
+            <button onClick={toggleLang} style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', padding: '6px 12px', color: 'var(--coffee-dark)', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}><Globe size={14} /> {c.langToggle}</button>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--coffee-medium), var(--gold))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}><User size={26} color="white" /></div>
+            <h2 className="thai-fix" style={{ fontSize: '22px', fontWeight: '800', color: 'var(--coffee-dark)' }}>{t.pinTitle}</h2>
+            <p className="thai-fix" style={{ color: 'var(--coffee-medium)', fontSize: '14px', marginBottom: '24px' }}>{t.pinSubtitle}</p>
             <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', marginBottom: '28px' }}>
-              {[0,1,2,3].map(i => <div key={i} style={{ width: '18px', height: '18px', borderRadius: '50%', background: i < pin.length ? 'var(--coffee-medium)' : '#e8d5c4', transition: 'all 0.15s ease', transform: i < pin.length ? 'scale(1.2)' : 'scale(1)', boxShadow: i < pin.length ? '0 0 0 4px rgba(44,89,66,0.2)' : 'none' }} />)}
+              {[0,1,2,3].map(i => <div key={i} style={{ width: '18px', height: '18px', borderRadius: '50%', background: i < pin.length ? 'var(--coffee-medium)' : '#e8d5c4', transition: 'all 0.15s ease' }} />)}
             </div>
-            {/* Pad */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
-              {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((d, i) =>
-                d === '' ? <div key={i} /> : (
-                  <button key={d} className="pin-digit" style={{ margin: '0 auto' }} onClick={() => { if (d === '⌫') { setPin(p => p.slice(0,-1)); setError('') } else handlePinDigit(d) }}>
-                    {loading && pin.length === 4 && d === '⌫' ? <Loader2 size={18} className="spin" /> : d}
-                  </button>
-                )
-              )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+              {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((d, i) => d === '' ? <div key={i}/> : <button key={d} className="pin-digit" onClick={() => d === '⌫' ? setPin(p => p.slice(0, -1)) : handlePinDigit(d)}>{d}</button>)}
             </div>
-            {error && <div style={{ background: '#fee2e2', color: '#dc2626', padding: '10px 16px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', border: '1px solid #fca5a5', marginBottom: '8px' }}>{error}</div>}
-            {loading && <div style={{ color: 'var(--coffee-medium)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Loader2 size={16} className="spin" /> {t.checking}</div>}
+            {error && <div style={{ color: '#dc2626', marginTop: '12px', fontSize: '14px', fontWeight: '600' }}>{error}</div>}
           </div>
         </>
       )}
 
-      {/* ══════════════ ANTI-CHEAT OVERLAY ══════════════ */}
       {screen === 'main' && antiCheatStep !== 'idle' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          {/* GPS */}
           {antiCheatStep === 'gps' && (
             <div style={{ textAlign: 'center', color: 'white', maxWidth: '320px' }}>
-              <MapPin size={56} color={gpsStatus === 'ok' ? '#22c55e' : gpsStatus === 'fail' ? '#ef4444' : 'var(--gold)'} style={{ margin: '0 auto 16px', display: 'block', animation: gpsStatus === 'loading' ? 'pulse-glow 1.5s infinite' : 'none' }} />
-              <h3 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '8px' }}>
-                {gpsStatus === 'loading' ? t.gpsChecking : gpsStatus === 'ok' ? t.gpsOk : t.gpsFail}
-              </h3>
+              <MapPin size={56} color={gpsStatus === 'ok' ? '#22c55e' : gpsStatus === 'fail' ? '#ef4444' : 'var(--gold)'} style={{ margin: '0 auto 16px', display: 'block' }} />
+              <h3>{gpsStatus === 'loading' ? t.gpsChecking : gpsStatus === 'ok' ? t.gpsOk : t.gpsFail}</h3>
               {gpsDistance !== null && (
-                <div style={{ padding: '12px 20px', borderRadius: '12px', background: gpsDistance <= allowedRadius ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)', border: `1px solid ${gpsDistance <= allowedRadius ? '#22c55e' : '#f59e0b'}`, marginTop: '12px' }}>
-                  <p style={{ color: gpsDistance <= allowedRadius ? '#4ade80' : '#fbbf24', fontSize: '18px', fontWeight: '800' }}>
-                    {gpsDistance <= allowedRadius ? `✅ ${t.inShop} (${Math.round(gpsDistance)} m)` : `⚠️ ${t.farFromShop} ${Math.round(gpsDistance)} m`}
-                  </p>
+                <div style={{ padding: '12px 20px', borderRadius: '12px', background: 'rgba(255,255,255,0.1)', marginTop: '12px' }}>
+                  <p style={{ color: gpsDistance <= allowedRadius ? '#4ade80' : '#fbbf24', fontSize: '18px', fontWeight: '800' }}>{gpsDistance <= allowedRadius ? `✅ ${t.inShop}` : `⚠️ ${t.farFromShop} ${Math.round(gpsDistance)} m`}</p>
                 </div>
               )}
-              {gpsStatus === 'fail' && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginTop: '8px' }}>{t.noGps}</p>}
             </div>
           )}
-
-          {/* Camera */}
           {(antiCheatStep === 'camera' || antiCheatStep === 'ready') && (
             <div style={{ width: '100%', maxWidth: '380px', textAlign: 'center' }}>
-              <h3 style={{ color: 'white', fontSize: '20px', fontWeight: '800', marginBottom: '16px' }}>
-                <Camera size={22} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} /> {t.takePhoto}
-              </h3>
-              {cameraStatus === 'loading' && (
-                <div style={{ color: 'rgba(255,255,255,0.7)', padding: '40px' }}>
-                  <Loader2 size={40} className="spin" style={{ margin: '0 auto 12px', display: 'block' }} />
-                  <p>{t.openingCam}</p>
-                </div>
-              )}
+              <h3 style={{ color: 'white', marginBottom: '16px' }}><Camera size={22} style={{ display: 'inline', marginRight: '8px' }} /> {t.takePhoto}</h3>
               {cameraStatus === 'preview' && (
                 <>
                   <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', borderRadius: '16px', border: '3px solid var(--gold)' }} />
-                  <button onClick={capturePhoto} style={{ marginTop: '16px', width: '72px', height: '72px', borderRadius: '50%', background: 'var(--gold)', border: '4px solid white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '16px auto 0', boxShadow: '0 0 0 6px rgba(212,175,55,0.3)' }}>
-                    <Camera size={28} color="var(--coffee-dark)" />
-                  </button>
-                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', marginTop: '8px' }}>{t.pressToSnap}</p>
+                  <button onClick={capturePhoto} style={{ marginTop: '16px', width: '72px', height: '72px', borderRadius: '50%', background: 'var(--gold)', border: '4px solid white', cursor: 'pointer' }}><Camera size={28} /></button>
                 </>
-              )}
-              {cameraStatus === 'fail' && (
-                <div style={{ color: '#fca5a5', padding: '24px' }}>
-                  <AlertTriangle size={36} style={{ margin: '0 auto 8px', display: 'block' }} />
-                  <p>{t.camFail}</p>
-                  <button onClick={() => setAntiCheatStep('ready')} style={{ marginTop: '16px', padding: '10px 24px', borderRadius: '12px', background: 'var(--gold)', border: 'none', fontWeight: '700', color: 'var(--coffee-dark)', cursor: 'pointer' }}>{t.continue}</button>
-                </div>
               )}
               {cameraStatus === 'captured' && capturedImage && (
                 <>
-                  <div style={{ position: 'relative' }}>
-                    <img src={capturedImage} alt="captured" style={{ width: '100%', borderRadius: '16px', border: '3px solid #22c55e' }} />
-                    <div style={{ position: 'absolute', bottom: '8px', left: '8px', background: 'rgba(0,0,0,0.6)', color: 'white', padding: '4px 10px', borderRadius: '8px', fontSize: '12px' }}>
-                      📸 {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
+                  <img src={capturedImage} alt="captured" style={{ width: '100%', borderRadius: '16px' }} />
                   <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                    <button onClick={retakePhoto} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', fontWeight: '600', cursor: 'pointer', fontSize: '15px' }}>{t.retake}</button>
-                    <button onClick={submitCheckIn} disabled={loading} style={{ flex: 2, padding: '14px', borderRadius: '12px', background: 'linear-gradient(135deg, #22c55e, #16a34a)', border: 'none', color: 'white', fontWeight: '800', cursor: 'pointer', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      {loading ? <Loader2 size={18} className="spin" /> : <ShieldCheck size={18} />} {t.confirmCheckIn}
-                    </button>
+                    <button onClick={retakePhoto} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'rgba(255,255,255,0.1)', color: 'white' }}>{t.retake}</button>
+                    <button onClick={submitAntiCheat} style={{ flex: 2, padding: '14px', borderRadius: '12px', background: 'var(--gold)', fontWeight: '800' }}>{activeAction === 'checkin' ? t.confirmCheckIn : t.checkOut}</button>
                   </div>
                 </>
               )}
-              <button onClick={cancelAntiCheat} style={{ marginTop: '16px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px', margin: '16px auto 0' }}>
-                <X size={16} /> {t.cancel}
-              </button>
+              <button onClick={cancelAntiCheat} style={{ marginTop: '16px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)' }}>{t.cancel}</button>
             </div>
           )}
           <canvas ref={canvasRef} style={{ display: 'none' }} />
         </div>
       )}
 
-      {/* ══════════════ CONFIRM CHECKOUT MODAL ══════════════ */}
       {showConfirmOut && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <div style={{ background: 'white', borderRadius: '24px', padding: '32px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: '0 24px 80px rgba(0,0,0,0.4)' }}>
-            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <LogOut size={28} color="#dc2626" />
-            </div>
-            <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--coffee-dark)', marginBottom: '8px' }}>{t.confirmOut}</h3>
-            <p style={{ color: 'var(--coffee-light)', fontSize: '14px', marginBottom: '16px' }}>{t.confirmOutMsg}</p>
-            <div style={{ background: '#fafcfb', borderRadius: '14px', padding: '16px', marginBottom: '20px', border: '1px solid #e8d5c4' }}>
-              <p style={{ fontSize: '12px', color: 'var(--coffee-light)', marginBottom: '4px' }}>{t.workedTime}</p>
-              <p style={{ fontSize: '32px', fontWeight: '900', color: 'var(--coffee-dark)', fontVariantNumeric: 'tabular-nums' }}>{workTimer}</p>
-              <p style={{ fontSize: '13px', color: 'var(--coffee-medium)', marginTop: '4px' }}>≈ {formatHours(currentHrsWorked)}</p>
+          <div className="modal-full-mobile" style={{ background: 'white', borderRadius: '24px', padding: '32px', maxWidth: '340px', width: '100%', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><LogOut size={28} color="#dc2626" /></div>
+            <h3>{t.confirmOut}</h3>
+            <p>{t.confirmOutMsg}</p>
+            <div style={{ background: '#fafcfb', borderRadius: '14px', padding: '16px', margin: '16px 0' }}>
+              <p style={{ fontSize: '12px', color: 'var(--coffee-light)' }}>{t.workedTime}</p>
+              <p style={{ fontSize: '32px', fontWeight: '900' }}>{workTimer}</p>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setShowConfirmOut(false)} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid #e8d5c4', background: 'white', fontWeight: '700', cursor: 'pointer', fontSize: '15px', color: 'var(--coffee-dark)' }}>{t.cancel}</button>
-              <button onClick={handleCheckOut} disabled={loading} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', border: 'none', color: 'white', fontWeight: '800', cursor: 'pointer', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                {loading ? <Loader2 size={16} className="spin" /> : <LogOut size={16} />} {t.checkOut}
-              </button>
+              <button onClick={() => setShowConfirmOut(false)} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid #e8d5c4' }}>{t.cancel}</button>
+              <button onClick={handleCheckOut} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: '#ef4444', color: 'white', fontWeight: '800' }}>{t.continue}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ══════════════ MAIN SCREEN ══════════════ */}
+      {selectedRecord && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div className="animate-slide-up glass modal-full-mobile" style={{ padding: '28px', borderRadius: '24px', maxWidth: '380px', width: '100%', position: 'relative' }}>
+            <button onClick={() => setSelectedRecord(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer' }}><X size={20} /></button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'rgba(212,175,55,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><History size={24} color="var(--gold)" /></div>
+              <div><h3 className="thai-fix" style={{ fontSize: '18px', fontWeight: '800' }}>{t.historyDetail}</h3><p style={{ fontSize: '13px' }}>{fmtDate(selectedRecord.check_in)}</p></div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ background: 'rgba(0,0,0,0.03)', padding: '12px', borderRadius: '12px' }}><p style={{ fontSize: '12px', color: 'var(--coffee-light)' }}>{t.checkIn}</p><p style={{ fontWeight: '800' }}>{fmtTime(selectedRecord.check_in)}</p></div>
+                <div style={{ background: 'rgba(0,0,0,0.03)', padding: '12px', borderRadius: '12px' }}><p style={{ fontSize: '12px', color: 'var(--coffee-light)' }}>{t.checkOut}</p><p style={{ fontWeight: '800' }}>{selectedRecord.check_out ? fmtTime(selectedRecord.check_out) : '-'}</p></div>
+              </div>
+              {selectedRecord.work_hours && (
+                <div style={{ background: 'var(--coffee-dark)', padding: '16px', borderRadius: '12px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>{t.total}</p>
+                  <p style={{ fontSize: '28px', fontWeight: '900', color: 'var(--gold)' }}>{formatHours(selectedRecord.work_hours)}</p>
+                </div>
+              )}
+              {selectedRecord.latitude && (
+                <div style={{ background: 'rgba(0,0,0,0.03)', padding: '14px', borderRadius: '12px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: '700' }}><MapPin size={14} /> Location</p>
+                  <p style={{ fontSize: '12px' }}>{t.lat}: {selectedRecord.latitude.toFixed(6)}, {t.lng}: {selectedRecord.longitude?.toFixed(6)}</p>
+                  {shopLat && shopLng && selectedRecord.longitude && (
+                    <p style={{ fontSize: '12px', color: '#16a34a', fontWeight: '700' }}>📍 {t.distance}: {Math.round(haversineMeters(selectedRecord.latitude, selectedRecord.longitude, shopLat, shopLng))} m {t.fromShop}</p>
+                  )}
+                </div>
+              )}
+              {selectedRecord.image_url && (
+                <div style={{ background: 'rgba(0,0,0,0.03)', padding: '14px', borderRadius: '12px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: '700' }}>📸 {t.photo}</p>
+                  <img src={selectedRecord.image_url} alt="proof" style={{ width: '100%', borderRadius: '8px' }} />
+                </div>
+              )}
+            </div>
+            <button onClick={() => setSelectedRecord(null)} style={{ width: '100%', marginTop: '20px', padding: '14px', borderRadius: '12px', background: 'var(--coffee-dark)', color: 'white', fontWeight: '700' }}>{t.cancel}</button>
+          </div>
+        </div>
+      )}
+
       {screen === 'main' && employee && antiCheatStep === 'idle' && (
         <div style={{ width: '100%', maxWidth: '440px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-          {/* ── Header ── */}
-          <div style={{ background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(16px)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(16px)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--coffee-medium), var(--gold))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '800', color: 'white' }}>
-                {employee.name.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <p style={{ color: 'white', fontWeight: '800', fontSize: '15px', lineHeight: 1.2 }}>{employee.name}</p>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>{employee.role}</p>
-              </div>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--coffee-medium), var(--gold))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', color: 'white' }}>{employee.name.charAt(0).toUpperCase()}</div>
+              <div><p className="thai-fix" style={{ color: 'white', fontWeight: '800' }}>{employee.name}</p><p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>{employee.role}</p></div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button 
-                onClick={toggleLang}
-                style={{
-                  background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', 
-                  borderRadius: '10px', padding: '4px 8px', color: 'white', 
-                  fontSize: '11px', fontWeight: '700', cursor: 'pointer'
-                }}
-              >
-                {c.langToggle}
-              </button>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ color: 'white', fontWeight: '700', fontSize: '20px', fontVariantNumeric: 'tabular-nums' }}>{currentTime}</p>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>{currentDate.split(' ').slice(0,2).join(' ')}</p>
-              </div>
-            </div>
+            <div style={{ textAlign: 'right' }}><p style={{ color: 'white', fontWeight: '700', fontSize: '20px' }}>{currentTime}</p><p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>{currentDate}</p></div>
           </div>
-
-          {/* ── Tabs ── */}
-          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '8px 12px', gap: '4px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-            {([
-              { id: 'status',  icon: Clock,    label: t.status },
-              { id: 'history', icon: History,   label: t.history },
-              { id: 'summary', icon: BarChart2, label: t.summary },
-            ] as const).map(({ id, icon: Icon, label }) => (
-              <button key={id} onClick={() => setActiveTab(id)} style={{
-                flex: 1, padding: '8px 4px', borderRadius: '10px', border: 'none',
-                background: activeTab === id ? 'rgba(255,255,255,0.15)' : 'transparent',
-                color: activeTab === id ? 'white' : 'rgba(255,255,255,0.45)',
-                fontSize: '13px', fontWeight: activeTab === id ? '700' : '500',
-                cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
-              }}>
-                <Icon size={18} />
-                {label}
-              </button>
+          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '8px 12px', gap: '4px' }}>
+            {([{ id: 'status', icon: Clock, label: t.status }, { id: 'history', icon: History, label: t.history }, { id: 'summary', icon: BarChart2, label: t.summary }] as const).map(({ id, icon: Icon, label }) => (
+              <button key={id} onClick={() => setActiveTab(id)} style={{ flex: 1, padding: '8px', borderRadius: '10px', background: activeTab === id ? 'rgba(255,255,255,0.15)' : 'transparent', color: activeTab === id ? 'white' : 'rgba(255,255,255,0.4)', border: 'none', cursor: 'pointer' }}><Icon size={18} /> {label}</button>
             ))}
           </div>
-
-          {/* ── Tab Content ── */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-
-            {/* Messages */}
-            {success && <div style={{ background: '#d1fae5', color: '#065f46', padding: '12px 16px', borderRadius: '12px', marginBottom: '12px', fontWeight: '700', border: '1px solid #6ee7b7', fontSize: '14px' }}>{success}</div>}
-            {error   && <div style={{ background: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: '12px', marginBottom: '12px', fontWeight: '700', border: '1px solid #fca5a5', fontSize: '14px' }}>{error}</div>}
-
-            {/* ─── STATUS TAB ─── */}
             {activeTab === 'status' && (
-              <div>
-                {/* Status badge */}
-                <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '20px', padding: '20px', marginBottom: '14px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.12)' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 20px', borderRadius: '24px', background: isWorking ? 'rgba(34,197,94,0.2)' : isDone ? 'rgba(96,165,250,0.2)' : 'rgba(251,191,36,0.2)', border: `1px solid ${isWorking ? '#22c55e' : isDone ? '#60a5fa' : '#fbbf24'}`, marginBottom: '14px' }}>
-                    {isWorking ? (
-                      <><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', animation: 'pulse-glow 2s infinite' }} /><span style={{ color: '#4ade80', fontWeight: '800', fontSize: '15px' }}>{t.working}</span></>
-                    ) : isDone ? (
-                      <><CheckCircle size={16} color="#60a5fa" /><span style={{ color: '#93c5fd', fontWeight: '800', fontSize: '15px' }}>{t.done}</span></>
-                    ) : (
-                      <><Clock size={16} color="#fbbf24" /><span style={{ color: '#fde68a', fontWeight: '800', fontSize: '15px' }}>{t.notStarted}</span></>
-                    )}
-                  </div>
-
-                  {/* Live timer */}
-                  {isWorking && workTimer && (
-                    <div style={{ marginBottom: '8px' }}>
-                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', marginBottom: '2px' }}>{t.workedTime}</p>
-                      <p style={{ color: 'var(--gold)', fontSize: '44px', fontWeight: '900', fontVariantNumeric: 'tabular-nums', letterSpacing: '2px', lineHeight: 1 }}>{workTimer}</p>
-                    </div>
-                  )}
-
-                  {/* Attendance details */}
-                  {attendance && (
-                    <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '12px', padding: '12px', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'left', marginTop: '8px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>{t.checkIn}</span>
-                        <span style={{ color: 'white', fontWeight: '700', fontSize: '14px' }}>{fmtTime(attendance.check_in)}</span>
-                      </div>
-                      {attendance.check_out && (
-                        <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>{t.checkOut}</span>
-                            <span style={{ color: 'white', fontWeight: '700', fontSize: '14px' }}>{fmtTime(attendance.check_out)}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>{t.total}</span>
-                            <span style={{ color: 'var(--gold)', fontWeight: '900', fontSize: '16px' }}>{formatHours(attendance.work_hours || 0)}</span>
-                          </div>
-                        </>
-                      )}
-                      {attendance.latitude && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                          <MapPin size={12} color="#4ade80" />
-                          <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '600' }}>
-                            {t.gpsConfirmed}
-                            {gpsDistance !== null && ` (${Math.round(gpsDistance)} m ${t.fromShop})`}
-                          </span>
-                        </div>
-                      )}
-                      {attendance.image_url && (
-                        <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', marginBottom: '6px' }}>📸 {fmtTime(attendance.check_in)}</p>
-                          <img src={attendance.image_url} alt="check-in" style={{ width: '100%', borderRadius: '10px', maxHeight: '120px', objectFit: 'cover' }} />
-                        </div>
-                      )}
-                    </div>
-                  )}
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '20px', padding: '20px', marginBottom: '14px' }}>
+                  <div style={{ padding: '8px 20px', borderRadius: '24px', background: isWorking ? 'rgba(34,197,94,0.2)' : 'rgba(251,191,36,0.2)', display: 'inline-block', marginBottom: '16px' }}><span style={{ color: isWorking ? '#4ade80' : '#fbbf24', fontWeight: '800' }}>{isWorking ? t.working : t.notStarted}</span></div>
+                  {isWorking && workTimer && <p style={{ color: 'var(--gold)', fontSize: '44px', fontWeight: '900' }}>{workTimer}</p>}
                 </div>
-
-                {/* Action buttons */}
-                {!isWorking && !isDone && (
-                  <button onClick={startCheckIn} disabled={loading} style={{ width: '100%', padding: '20px', background: 'linear-gradient(135deg, #22c55e, #16a34a)', border: 'none', borderRadius: '18px', color: 'white', fontSize: '20px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 8px 28px rgba(34,197,94,0.35)', marginBottom: '12px', opacity: loading ? 0.7 : 1 }}>
-                    <LogIn size={26} /> {t.checkIn}
-                  </button>
-                )}
-                {isWorking && (
-                  <button onClick={() => setShowConfirmOut(true)} disabled={loading} style={{ width: '100%', padding: '20px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', border: 'none', borderRadius: '18px', color: 'white', fontSize: '20px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 8px 28px rgba(239,68,68,0.35)', marginBottom: '12px', opacity: loading ? 0.7 : 1 }}>
-                    {loading ? <Loader2 size={24} className="spin" /> : <LogOut size={24} />}
-                    {t.checkOut}
-                  </button>
-                )}
-                {isDone && (
-                  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '16px', padding: '16px', textAlign: 'center', marginBottom: '12px', color: 'rgba(255,255,255,0.6)', fontSize: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    {t.shiftDone}
-                  </div>
-                )}
-                <button onClick={() => { setScreen('pin'); setEmployee(null); setAttendance(null); setPin(''); setError(''); setSuccess('') }} style={{ width: '100%', padding: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px', color: 'rgba(255,255,255,0.7)', fontSize: '15px', cursor: 'pointer', fontWeight: '600' }}>
-                  {t.logout}
-                </button>
+                {!isWorking && !isDone && <button onClick={() => startAntiCheat('checkin')} style={{ width: '100%', padding: '20px', background: '#22c55e', borderRadius: '18px', color: 'white', fontSize: '20px', fontWeight: '800', border: 'none', cursor: 'pointer' }}><LogIn /> {t.checkIn}</button>}
+                {isWorking && <button onClick={() => setShowConfirmOut(true)} style={{ width: '100%', padding: '20px', background: '#ef4444', borderRadius: '18px', color: 'white', fontSize: '20px', fontWeight: '800', border: 'none', cursor: 'pointer' }}><LogOut /> {t.checkOut}</button>}
+                <button onClick={() => setScreen('pin')} style={{ width: '100%', marginTop: '12px', padding: '14px', background: 'rgba(255,255,255,0.05)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer' }}>{t.logout}</button>
               </div>
             )}
-
-            {/* ─── HISTORY TAB ─── */}
             {activeTab === 'history' && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                  <Calendar size={18} color="rgba(255,255,255,0.6)" />
-                  <h3 style={{ color: 'white', fontWeight: '800', fontSize: '16px' }}>{t.workHistory}</h3>
-                </div>
-                {historyLoading ? (
-                  <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.4)' }}>
-                    <Loader2 size={32} className="spin" style={{ margin: '0 auto 8px', display: 'block' }} />
-                    <p>{t.loading}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {history.map(rec => (
+                  <div key={rec.id} onClick={() => setSelectedRecord(rec)} style={{ background: 'rgba(255,255,255,0.07)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}>
+                    <div><p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>{fmtDate(rec.check_in)}</p><p style={{ color: 'white', fontWeight: '700' }}>{fmtTime(rec.check_in)} – {rec.check_out ? fmtTime(rec.check_out) : t.working}</p></div>
+                    <div style={{ textAlign: 'right' }}>{rec.work_hours && <p style={{ color: 'var(--gold)', fontWeight: '900' }}>{rec.work_hours.toFixed(1)} {t.hrs}</p>}<ChevronRight size={14} color="rgba(255,255,255,0.2)" /></div>
                   </div>
-                ) : history.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.4)' }}>
-                    <History size={40} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.3 }} />
-                    <p>{t.noHistory}</p>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {history.map((rec) => (
-                      <div key={rec.id} style={{ background: 'rgba(255,255,255,0.07)', borderRadius: '16px', padding: '14px 16px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div>
-                          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginBottom: '4px' }}>{fmtDate(rec.check_in)}</p>
-                          <p style={{ color: 'white', fontWeight: '700', fontSize: '14px' }}>
-                            {fmtTime(rec.check_in)} – {rec.check_out ? fmtTime(rec.check_out) : <span style={{ color: '#4ade80' }}>{t.working}</span>}
-                          </p>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          {rec.work_hours ? (
-                            <div style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '10px', padding: '6px 12px' }}>
-                              <p style={{ color: 'var(--gold)', fontWeight: '900', fontSize: '18px', lineHeight: 1 }}>{rec.work_hours.toFixed(1)}</p>
-                              <p style={{ color: 'rgba(212,175,55,0.6)', fontSize: '10px' }}>{t.hrs}</p>
-                            </div>
-                          ) : (
-                            <div style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '10px', padding: '6px 12px' }}>
-                              <p style={{ color: '#4ade80', fontSize: '12px', fontWeight: '700' }}>Active</p>
-                            </div>
-                          )}
-                          <ChevronRight size={14} color="rgba(255,255,255,0.2)" style={{ marginTop: '4px', float: 'right' }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
             )}
-
-            {/* ─── SUMMARY TAB ─── */}
             {activeTab === 'summary' && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                  <BarChart2 size={18} color="rgba(255,255,255,0.6)" />
-                  <h3 style={{ color: 'white', fontWeight: '800', fontSize: '16px' }}>{t.summaryHours}</h3>
-                </div>
-                {historyLoading ? (
-                  <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.4)' }}>
-                    <Loader2 size={32} className="spin" style={{ margin: '0 auto 8px', display: 'block' }} /><p>{t.loading}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {[ { label: t.today, value: summary?.today ?? 0, target: 8, color: '#4ade80' }, { label: t.thisWeek, value: summary?.weekly ?? 0, target: 40, color: '#60a5fa' }, { label: t.thisMonth, value: summary?.monthly ?? 0, target: 160, color: '#c084fc' } ].map(({ label, value, target, color }) => (
+                  <div key={label} style={{ background: 'rgba(255,255,255,0.07)', borderRadius: '18px', padding: '20px' }}>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>{label}</p>
+                    <p style={{ color: 'white', fontSize: '32px', fontWeight: '900' }}>{value.toFixed(1)}</p>
+                    <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginTop: '8px' }}><div style={{ height: '8px', borderRadius: '4px', background: color, width: `${Math.min((value / target) * 100, 100)}%` }} /></div>
                   </div>
-                ) : (
-                  <>
-                    {/* Summary cards */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-                      {[
-                        { label: t.today,   value: summary?.today   ?? 0, target: 8,   color: '#4ade80', icon: '📅' },
-                        { label: t.thisWeek, value: summary?.weekly  ?? 0, target: 40,  color: '#60a5fa', icon: '📆' },
-                        { label: t.thisMonth,  value: summary?.monthly ?? 0, target: 160, color: '#c084fc', icon: '🗓️' },
-                      ].map(({ label, value, target, color, icon }) => {
-                        const pct = Math.min((value / target) * 100, 100)
-                        return (
-                          <div key={label} style={{ background: 'rgba(255,255,255,0.07)', borderRadius: '18px', padding: '18px 20px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '12px' }}>
-                              <div>
-                                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginBottom: '4px' }}>{icon} {label}</p>
-                                <p style={{ color: 'white', fontSize: '32px', fontWeight: '900', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value.toFixed(1)}</p>
-                                <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>{t.hoursOfTarget} {target} {t.hrs}</p>
-                              </div>
-                              <p style={{ color, fontSize: '22px', fontWeight: '800' }}>{Math.round(pct)}%</p>
-                            </div>
-                            <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>
-                              <div style={{ height: '8px', borderRadius: '4px', background: color, width: `${pct}%`, transition: 'width 0.6s ease' }} />
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    {/* Recent history mini */}
-                    <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: '18px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', fontWeight: '700', marginBottom: '12px' }}>{t.last7days}</p>
-                      {history.slice(0, 7).map((rec) => (
-                        <div key={rec.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>{fmtDate(rec.check_in)}</p>
-                          <p style={{ color: rec.work_hours ? 'var(--gold)' : '#4ade80', fontWeight: '800', fontSize: '14px' }}>
-                            {rec.work_hours ? `${rec.work_hours.toFixed(1)} ${t.hrs}` : t.active}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
+                ))}
               </div>
             )}
           </div>

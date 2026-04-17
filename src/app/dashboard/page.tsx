@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, Zap, AlertTriangle,
   CheckCircle, Info, BarChart2, Award, Target, RefreshCw
 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import { useSettings } from '@/context/SettingsContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
@@ -87,7 +88,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [lastRefresh, setLastRefresh] = useState(new Date())
-  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [menuMap, setMenuMap] = useState<Map<string, string>>(new Map())
 
   const { settings, loading: settingsLoading } = useSettings()
   const { lang, toggleLang } = useLanguage()
@@ -98,31 +99,25 @@ export default function DashboardPage() {
   const shopName = settings.receipt.header
   const shopSub = `${t.title} · ${t.subtitle}`
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
-      const [attRes, ordRes, menuRes] = await Promise.all([
+      const [attRes, ordRes] = await Promise.all([
         fetch(`/api/attendance?period=${period}&date=${date}`),
-        fetch(`/api/orders?date=${date}`),
-        fetch(`/api/menu`)
+        fetch(`/api/orders?date=${date}`)
       ])
-      const [attData, ordData, menuData] = await Promise.all([attRes.json(), ordRes.json(), menuRes.json()])
+      const [attData, ordData] = await Promise.all([attRes.json(), ordRes.json()])
       
       if (attData.records) setRecords(attData.records)
       if (attData.summary) setSummary(attData.summary)
       
       const fetchedOrders: Order[] = ordData.orders || mockOrders
 
-      // Attach localized names dynamically based on the active language
-      if (menuData.products) {
-        const prodMap = new Map<string, string>()
-        menuData.products.forEach((p: any) => {
-           if (p.name_th) prodMap.set(p.name, p.name_th)
-        })
-        
+      // Attach localized names dynamically using cached menuMap
+      if (menuMap.size > 0) {
         fetchedOrders.forEach(o => {
           o.items.forEach(i => {
-            const mappedName = prodMap.get(i.name)
+            const mappedName = menuMap.get(i.name)
             if (lang === 'th' && mappedName) {
               i.name = mappedName
             }
@@ -138,14 +133,42 @@ export default function DashboardPage() {
       setAnalytics(analyzeOrders(mockOrders))
     }
     setLoading(false)
-  }, [period, date, lang])
+  }, [period, date, lang, menuMap])
+
+  // Fetch menu once on mount
+  useEffect(() => {
+    fetch('/api/menu')
+      .then(r => r.json())
+      .then(data => {
+        if (data.products) {
+          const m = new Map<string, string>()
+          data.products.forEach((p: any) => {
+            if (p.name_th) m.set(p.name, p.name_th)
+          })
+          setMenuMap(m)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Auto-refresh every 60s
+  // Real-time synchronization
   useEffect(() => {
-    refreshTimer.current = setInterval(fetchData, 60000)
-    return () => { if (refreshTimer.current) clearInterval(refreshTimer.current) }
+    const ordersChannel = supabase
+      .channel('dashboard-orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchData(true))
+      .subscribe()
+
+    const attendanceChannel = supabase
+      .channel('dashboard-attendance')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => fetchData(true))
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(ordersChannel)
+      supabase.removeChannel(attendanceChannel)
+    }
   }, [fetchData])
 
   const changeDate = (delta: number) => {
@@ -208,15 +231,15 @@ export default function DashboardPage() {
                 <Coffee size={24} color="var(--coffee-dark)" />
               </div>
               <div>
-                <h1 style={{ color: 'white', fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px' }}>{shopName}</h1>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>{shopSub}</p>
+                <h1 className="thai-fix" style={{ color: 'white', fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px' }}>{shopName}</h1>
+                <p className="thai-fix" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>{shopSub}</p>
               </div>
             </div>
 
             {/* Right – controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               {/* Period */}
-              <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '4px' }}>
+              <div className="desktop-only" style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '4px' }}>
                 {(['daily', 'weekly', 'monthly'] as const).map(p => {
                   const labelMap: Record<string, string> = { daily: c.daily, weekly: c.weekly, monthly: c.monthly }
                   return (
@@ -241,6 +264,7 @@ export default function DashboardPage() {
                 <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{
                   padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.2)',
                   background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '13px', outline: 'none',
+                  width: '130px'
                 }} />
                 <button onClick={() => changeDate(1)} style={{
                   width: '32px', height: '32px', borderRadius: '8px',
@@ -248,13 +272,6 @@ export default function DashboardPage() {
                   cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}><ChevronRight size={16} /></button>
               </div>
-
-              {/* Refresh */}
-              <button onClick={fetchData} title={t.refresh} style={{
-                width: '32px', height: '32px', borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
-                cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}><RefreshCw size={14} /></button>
 
               {/* Lang toggle */}
               <button onClick={toggleLang} style={{
@@ -278,7 +295,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Tabs ── */}
-          <div style={{ display: 'flex', gap: '2px' }}>
+          <div className="tab-scroll" style={{ display: 'flex', gap: '2px' }}>
             {([
               { id: 'overview', label: t.overview },
               { id: 'reports', label: t.reports },
@@ -292,6 +309,7 @@ export default function DashboardPage() {
                 fontWeight: activeTab === tab.id ? '700' : '500',
                 fontSize: '14px', borderRadius: '10px 10px 0 0',
                 transition: 'all 0.2s',
+                whiteSpace: 'nowrap'
               }}>{tab.label}</button>
             ))}
           </div>
@@ -310,7 +328,7 @@ export default function DashboardPage() {
         {!loading && activeTab === 'overview' && a && (
           <div>
             {/* KPI Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+            <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
               <KPICard icon={<TrendingUp size={22} />} label={t.totalRevenue} value={`${currency}${a.totalRevenue.toLocaleString()}`} sub={`${t.paid} ${currency}${a.paidRevenue.toLocaleString()}`} accent="#d4af37" />
               <KPICard icon={<Coffee size={22} />} label={t.ordersTotal} value={a.totalOrders.toString()} sub={`${t.avgOrder} ${currency}${a.avgOrderValue}${t.perOrder}`} accent="#60a5fa" />
               <KPICard icon={<Users size={22} />} label={t.staffActive} value={activeNow.toString()} sub={`${Object.keys(summary).length} ${t.inPeriod}`} accent="#34d399" />
@@ -345,7 +363,7 @@ export default function DashboardPage() {
             )}
 
             {/* Two-col: top items + payment breakdown */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
+            <div className="management-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
               {/* Top Items */}
               <div className="card" style={{ padding: '20px' }}>
                 <SectionTitle icon="🔥" title={t.topItems} />
@@ -360,7 +378,7 @@ export default function DashboardPage() {
                         fontWeight: '800', fontSize: '13px', color: 'var(--coffee-dark)', flexShrink: 0,
                       }}>{i + 1}</div>
                       <div style={{ flex: 1 }}>
-                        <p style={{ fontWeight: '700', fontSize: '14px', color: 'var(--coffee-dark)' }}>{item.name}</p>
+                        <p className="thai-fix" style={{ fontWeight: '700', fontSize: '14px', color: 'var(--coffee-dark)' }}>{item.name}</p>
                         <div style={{ height: '6px', background: '#f0e8df', borderRadius: '4px', marginTop: '4px' }}>
                           <div style={{
                             height: '6px', borderRadius: '4px',
@@ -436,7 +454,7 @@ export default function DashboardPage() {
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                   color: 'white', fontSize: '14px', fontWeight: '800',
                                 }}>{emp.name.charAt(0)}</div>
-                                {emp.name}
+                                <span className="thai-fix">{emp.name}</span>
                               </div>
                             </td>
                             <td style={{ padding: '12px' }}><span style={{ background: '#f0f9f4', padding: '3px 8px', borderRadius: '6px', fontSize: '13px', color: 'var(--coffee-medium)', fontWeight: '600' }}>{emp.role}</span></td>
@@ -502,7 +520,7 @@ function KPICard({ icon, label, value, sub, accent }: {
 
 function SectionTitle({ icon, title }: { icon: string; title: string }) {
   return (
-    <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--coffee-dark)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <h3 className="thai-fix" style={{ fontSize: '16px', fontWeight: '800', color: 'var(--coffee-dark)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
       {icon} {title}
     </h3>
   )
