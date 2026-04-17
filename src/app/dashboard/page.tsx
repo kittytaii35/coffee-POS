@@ -106,7 +106,8 @@ export default function DashboardPage() {
     if (!silent) setLoading(true)
     try {
       const url = `/api/attendance?period=${period}&date=${date}&endDate=${endDate}`
-      const ordUrl = `/api/orders?date=${date}&endDate=${endDate}&period=${period}`
+      // Fix: API expects 'startDate' and 'endDate' for range queries
+      const ordUrl = `/api/orders?startDate=${date}&endDate=${endDate}&period=${period}`
 
       const [attRes, ordRes] = await Promise.all([
         fetch(url),
@@ -598,9 +599,9 @@ function ChipLegend({ color, label }: { color: string; label: string }) {
 }
 
 const dateInputStyle: React.CSSProperties = {
-  padding: '6px 8px 6px 36px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)',
-  background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '11px', outline: 'none',
-  width: '125px', cursor: 'pointer'
+  padding: '6px 8px 6px 30px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '12px', outline: 'none',
+  width: '135px', cursor: 'pointer', fontFamily: 'inherit'
 }
 
 const dateLabelStyle: React.CSSProperties = {
