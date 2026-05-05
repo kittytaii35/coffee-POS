@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS ingredients (
 -- Bill of Materials: links each menu item → its required ingredients
 CREATE TABLE IF NOT EXISTS recipe_items (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  menu_item_id   UUID NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
+  menu_item_id   UUID NOT NULL,              -- อ้างถึง menu_items.id (ไม่ใช้ FK เพราะ table ยังไม่ได้สร้าง)
   ingredient_id  UUID NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
   qty_per_serve  DECIMAL(10,3) NOT NULL,  -- qty needed per 1 serving
   created_at     TIMESTAMPTZ DEFAULT NOW(),
@@ -92,7 +92,7 @@ ALTER TABLE members
   ADD COLUMN IF NOT EXISTS tier_id            UUID REFERENCES member_tiers(id),
   ADD COLUMN IF NOT EXISTS lifetime_points    INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS visit_count        INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS favorite_menu_id   UUID REFERENCES menu_items(id),
+  ADD COLUMN IF NOT EXISTS favorite_menu_id   UUID,  -- อ้างถึง menu_items.id (ไม่ใช้ FK เพราะ table ยังไม่ได้สร้าง)
   ADD COLUMN IF NOT EXISTS notes              TEXT,
   ADD COLUMN IF NOT EXISTS birthday           DATE;
 
@@ -155,7 +155,7 @@ CREATE TABLE IF NOT EXISTS promotions (
 CREATE TABLE IF NOT EXISTS promotion_items (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   promotion_id  UUID NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
-  menu_item_id  UUID NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
+  menu_item_id  UUID NOT NULL,              -- อ้างถึง menu_items.id (ไม่ใช้ FK เพราะ table ยังไม่ได้สร้าง)
   UNIQUE (promotion_id, menu_item_id)
 );
 
