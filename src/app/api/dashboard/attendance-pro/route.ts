@@ -21,30 +21,44 @@ export async function GET(req: NextRequest) {
     }
 
     const supabase = createServerSupabaseClient()
+    const { searchParams } = new URL(req.url)
+
     const now = new Date()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
-    // Fetch this month's data to calculate robust charts and tables
+    // รับ startDate / endDate จาก query params (ถ้าไม่มี = ทั้งเดือนปัจจุบัน)
+    const startParam = searchParams.get('startDate')
+    const endParam = searchParams.get('endDate')
+
+    const rangeStart = startParam
+      ? new Date(`${startParam}T00:00:00`).toISOString()
+      : new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+    const rangeEnd = endParam
+      ? new Date(`${endParam}T23:59:59`).toISOString()
+      : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString()
+
+    // Fetch ตามช่วงเวลาที่กำหนด
     const { data: records, error } = await supabase
       .from('attendance')
       .select('*, employees(id, name, role)')
-      .gte('check_in', monthStart)
+      .gte('check_in', rangeStart)
+      .lte('check_in', rangeEnd)
       .order('check_in', { ascending: false })
+      .limit(500)
 
     if (error) throw error
 
     // Process
     const liveStaff = records?.filter(r => r.status === 'working') || []
     const todayRecords = records?.filter(r => r.check_in >= todayStart) || []
-    
+
     // Summary computations
     const nowTs = Date.now()
     const totalStaffToday = new Set(todayRecords.map(r => r.employee_id)).size
     const workingNow = liveStaff.length
     const totalHoursToday = parseFloat(todayRecords.reduce((acc, r) => {
       let sessionHours = r.work_hours || 0
-      // If still working, calculate live hours
       if (!r.check_out && r.check_in) {
         const start = new Date(r.check_in).getTime()
         sessionHours = Math.max(0, (nowTs - start) / (1000 * 60 * 60))
@@ -60,7 +74,8 @@ export async function GET(req: NextRequest) {
 
     // Alerts
     const alerts: { type: string, message: string, id: string }[] = []
-    
+
+    // พนักงานที่ status = working แต่ check_in เป็นวันก่อนหน้า
     const missingCheckouts = liveStaff.filter(r => r.check_in < todayStart)
     missingCheckouts.forEach(m => {
       alerts.push({ type: 'danger', message: `${m.employees?.name} ลืมลงเวลาออกเมื่อวาน! (ระบบยังขึ้นว่ากำลังทำงาน)`, id: `missing-${m.id}` })
@@ -75,12 +90,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
-      summary: {
-        totalStaffToday,
-        workingNow,
-        totalHoursToday,
-        lateCount: lateArrivals.length
-      },
+      summary: { totalStaffToday, workingNow, totalHoursToday, lateCount: lateArrivals.length },
       liveStaff,
       alerts,
       history: records || []
@@ -91,3 +101,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch PRO Dashboard data' }, { status: 500 })
   }
 }
+

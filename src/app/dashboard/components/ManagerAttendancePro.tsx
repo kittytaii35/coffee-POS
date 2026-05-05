@@ -204,9 +204,16 @@ export default function ManagerAttendancePro() {
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null)
   const [forceCheckoutRecord, setForceCheckoutRecord] = useState<any | null>(null)
 
+  // Date range — default = เดือนนี้
+  const today = new Date().toISOString().split('T')[0]
+  const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  const [startDate, setStartDate] = useState(firstOfMonth)
+  const [endDate, setEndDate] = useState(today)
+
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/dashboard/attendance-pro')
+      const params = new URLSearchParams({ startDate, endDate })
+      const res = await fetch(`/api/dashboard/attendance-pro?${params}`)
       const d = await res.json()
       if (!d.error) setData(d)
     } finally {
@@ -216,12 +223,12 @@ export default function ManagerAttendancePro() {
 
   useEffect(() => {
     fetchData()
-    const t = setInterval(fetchData, 10000) // Poll every 10s for near real-time
+    const timer = setInterval(fetchData, 30000) // Poll every 30s
     return () => {
-      clearInterval(t)
+      clearInterval(timer)
       document.body.style.overflow = 'unset'
     }
-  }, [])
+  }, [startDate, endDate]) // re-fetch เมื่อเปลี่ยนช่วงวัน
 
   useEffect(() => {
     document.body.style.overflow = selectedRecord ? 'hidden' : 'unset'
@@ -302,6 +309,38 @@ export default function ManagerAttendancePro() {
         <KPI icon={<Activity size={24}/>} title={t.workingNow} value={s.workingNow} color="#22c55e" pulse />
         <KPI icon={<Clock size={24}/>} title={t.totalHours} value={`${s.totalHoursToday.toFixed(1)}h`} color="#60a5fa" />
         <KPI icon={<AlertTriangle size={24}/>} title={t.lateArrivals} value={s.lateCount} color={s.lateCount > 0 ? '#ef4444' : '#9ca3af'} />
+      </div>
+
+      {/* ── Date Range Picker ── */}
+      <div style={{ background: 'white', border: '1px solid #f0e8df', borderRadius: '14px', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        <Calendar size={16} color="var(--coffee-medium)" />
+        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--coffee-medium)' }}>ดูประวัติตั้งแต่:</span>
+        <input
+          type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e8d5c4', fontSize: '13px', outline: 'none' }}
+        />
+        <span style={{ color: 'var(--coffee-light)' }}>–</span>
+        <input
+          type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e8d5c4', fontSize: '13px', outline: 'none' }}
+        />
+        <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
+          {[{ label: 'วันนี้', days: 0 }, { label: '7 วัน', days: 6 }, { label: 'เดือนนี้', days: -1 }].map(({ label, days }) => (
+            <button
+              key={label}
+              onClick={() => {
+                const t = new Date().toISOString().split('T')[0]
+                if (days === -1) {
+                  setStartDate(firstOfMonth); setEndDate(t)
+                } else {
+                  const s = new Date(); s.setDate(s.getDate() - days)
+                  setStartDate(s.toISOString().split('T')[0]); setEndDate(t)
+                }
+              }}
+              style={{ padding: '5px 10px', borderRadius: '8px', border: '1px solid #e8d5c4', background: 'white', fontSize: '12px', fontWeight: '600', cursor: 'pointer', color: 'var(--coffee-medium)' }}
+            >{label}</button>
+          ))}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '24px' }}>
