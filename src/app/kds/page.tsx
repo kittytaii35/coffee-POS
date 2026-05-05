@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Clock, CheckCircle, ChevronRight, Volume2, VolumeX, RefreshCw, Wifi, WifiOff, Home, Globe } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
-import { useLanguage } from '@/lib/translations'
+import { useLanguage } from '@/context/LanguageContext'
 import type { KdsStatus } from '@/types/advanced'
 
 // ─── Types ────────────────────────────────────────────────────

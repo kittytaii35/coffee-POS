@@ -28,28 +28,43 @@ export async function GET(req: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Revenue from completed orders
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('total, created_at')
-      .eq('status', 'completed')
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', now.toISOString())
+    const [
+      { data: orders },
+      { data: expenses },
+      { data: stockOut },
+      { data: daily }
+    ] = await Promise.all([
+      // Revenue from completed orders
+      supabase
+        .from('orders')
+        .select('total, created_at')
+        .eq('status', 'completed')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', now.toISOString()),
 
-    // Expenses in period
-    const { data: expenses } = await supabase
-      .from('expenses')
-      .select('amount, expense_date, category:expense_categories(name, name_th, icon, color)')
-      .gte('expense_date', startStr)
-      .lte('expense_date', endStr)
+      // Expenses in period
+      supabase
+        .from('expenses')
+        .select('amount, expense_date, category:expense_categories(name, name_th, icon, color)')
+        .gte('expense_date', startStr)
+        .lte('expense_date', endStr),
 
-    // COGS from stock_movements (order_deduct type)
-    const { data: stockOut } = await supabase
-      .from('stock_movements')
-      .select('qty_change, cost_per_unit')
-      .eq('movement_type', 'out')
-      .eq('reason', 'order_deduct')
-      .gte('created_at', startDate.toISOString())
+      // COGS from stock_movements (order_deduct type)
+      supabase
+        .from('stock_movements')
+        .select('qty_change, cost_per_unit')
+        .eq('movement_type', 'out')
+        .eq('reason', 'order_deduct')
+        .gte('created_at', startDate.toISOString()),
+
+      // Daily breakdown from v_daily_profit view
+      supabase
+        .from('v_daily_profit')
+        .select('*')
+        .gte('report_date', startStr)
+        .lte('report_date', endStr)
+        .order('report_date', { ascending: true })
+    ])
 
     const revenue  = orders?.reduce((s, o) => s + Number(o.total), 0) ?? 0
     const cogs     = stockOut?.reduce((s, m) => s + (Math.abs(m.qty_change) * (m.cost_per_unit || 0)), 0) ?? 0
@@ -57,14 +72,6 @@ export async function GET(req: NextRequest) {
     const grossProfit = revenue - cogs
     const netProfit   = grossProfit - totalExp
     const marginPct   = revenue > 0 ? (netProfit / revenue) * 100 : 0
-
-    // Daily breakdown from v_daily_profit view
-    const { data: daily } = await supabase
-      .from('v_daily_profit')
-      .select('*')
-      .gte('report_date', startStr)
-      .lte('report_date', endStr)
-      .order('report_date', { ascending: true })
 
     // Expenses by category
     const byCategory: Record<string, { name: string; name_th: string; icon: string; color: string; total: number }> = {}

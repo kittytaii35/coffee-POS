@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Edit3, Trash2, Search, AlertTriangle, PackagePlus, TrendingDown, X, ArrowLeft, Home, Globe } from 'lucide-react'
 import Link from 'next/link'
-import { useLanguage } from '@/lib/translations'
+import { useLanguage } from '@/context/LanguageContext'
 
 // ─── Types ────────────────────────────────────────────────────
 interface Ingredient {
@@ -16,6 +16,7 @@ const CATEGORIES = [
   { value: 'beans',   label: 'เมล็ดกาแฟ',  icon: '☕' },
   { value: 'milk',    label: 'นม/ครีม',     icon: '🥛' },
   { value: 'syrup',   label: 'ไซรัป',       icon: '🍯' },
+  { value: 'fruit',   label: 'ผลไม้',       icon: '🍎' },
   { value: 'cup',     label: 'บรรจุภัณฑ์',  icon: '🥤' },
   { value: 'topping', label: 'ท็อปปิ้ง',    icon: '🍫' },
   { value: 'other',   label: 'อื่นๆ',       icon: '📦' },

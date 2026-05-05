@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Edit3, Trash2, ToggleLeft, ToggleRight, Tag, Clock, Gift, Percent, Minus, ArrowLeft, Home, Globe } from 'lucide-react'
 import Link from 'next/link'
-import { useLanguage } from '@/lib/translations'
+import { useLanguage } from '@/context/LanguageContext'
 import type { Promotion, PromotionType } from '@/types/advanced'
 
 const TYPE_META: Record<PromotionType, { label: string; labelTh: string; color: string; bg: string; icon: React.ReactNode }> = {

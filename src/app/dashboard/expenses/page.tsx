@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, Edit3, TrendingDown, TrendingUp, DollarSign, PieChart, ArrowLeft, Globe, Home } from 'lucide-react'
 import Link from 'next/link'
-import { useLanguage } from '@/lib/translations'
+import { useLanguage } from '@/context/LanguageContext'
 import { PieChart as RePie, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 
 // ─── Types ────────────────────────────────────────────────────
@@ -237,7 +237,6 @@ export default function ExpensesPage() {
             </button>
           ))}
         </div>
-      </div>
 
       {/* KPI Cards */}
       {profit && (
