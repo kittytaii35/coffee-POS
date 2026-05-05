@@ -11,7 +11,7 @@ interface SettingsContextType {
 }
 
 const defaultSettings: GlobalSettings = {
-  pos: { vat_rate: 7, service_charge: 0, enable_qr: true, currency: '฿', shop_id: 'default' },
+  pos: { vat_rate: 7, service_charge: 0, enable_qr: true, currency: '฿', shop_id: 'default', thb_per_point: 50, point_value_thb: 1 },
   attendance: { shop_lat: 13.7563, shop_lng: 100.5018, allowed_radius_meters: 100, require_photo: true, auto_checkout_hour: 22 },
   notifications: { line_enabled: false, line_token: '', notify_on_order: true, notify_on_attendance: true },
   receipt: { header: 'Queen Coffee', footer: 'Thank you!', show_qr: true, promptpay_id: '0812345678' }

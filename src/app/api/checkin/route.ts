@@ -46,17 +46,25 @@ export async function POST(req: NextRequest) {
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString()
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString()
 
-      // Check duplicate
-      const { data: existing } = await supabase
+      // ── ป้องกัน duplicate: ใช้ .limit(1) แทน .maybeSingle()
+      // เพราะถ้ามี row ซ้ำอยู่แล้ว .maybeSingle() จะ throw error
+      // แทนที่จะ return existing row ทำให้เช็คไม่ได้แล้ว insert ซ้ำต่อไป
+      const { data: existingRows } = await supabase
         .from('attendance')
-        .select('*')
+        .select('id, check_in, status')
         .eq('employee_id', employee_id)
         .eq('status', 'working')
         .gte('check_in', startOfDay)
         .lte('check_in', endOfDay)
-        .maybeSingle()
+        .limit(1)
 
-      if (existing) {
+      if (existingRows && existingRows.length > 0) {
+        // ดึง record เต็มๆ มาส่งกลับ
+        const { data: existing } = await supabase
+          .from('attendance')
+          .select('*, employees(name, role)')
+          .eq('id', existingRows[0].id)
+          .single()
         return NextResponse.json({ error: 'คุณลงเวลาเข้างานไปแล้ววันนี้', attendance: existing }, { status: 409 })
       }
 

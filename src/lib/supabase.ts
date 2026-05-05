@@ -28,81 +28,16 @@ export const createServerSupabaseClient = () => {
   return safeCreateClient(url, serviceRoleKey)
 }
 
-export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'completed' | 'cancelled'
-export type PaymentType = 'cash' | 'transfer' | 'promptpay'
-export type AttendanceStatus = 'working' | 'done'
+// ── Re-export all domain types from the centralized types file ──
+export type {
+  OrderStatus, PaymentType, AttendanceStatus, PointTxType,
+  ItemModifier, OrderItem, Order,
+  Member, PointTransaction,
+  Employee, Attendance,
+  MenuItem, Shift, GlobalSettings,
+} from '@/types/supabase'
 
-export interface OrderItem {
-  id: string
-  name: string
-  name_th?: string
-  price: number
-  quantity: number
-  sweetness?: string
-  toppings?: string[]
-  notes?: string
-}
-
-export interface Order {
-  id: string
-  order_id: string // e.g. QCF-20260416-0001
-  customer_name: string
-  customer_line_id?: string
-  items: OrderItem[]
-  total: number
-  status: OrderStatus
-  payment_type?: PaymentType
-  paid: boolean
-  created_at: string
-  updated_at?: string
-}
-
-
-export interface Employee {
-  id: string
-  name: string
-  role: string
-  pin_code: string
-  created_at: string
-}
-
-export interface Attendance {
-  id: string
-  employee_id: string
-  check_in: string
-  check_out?: string
-  work_hours?: number
-  status: AttendanceStatus
-  created_at: string
-  employees?: Employee
-}
-
-export interface MenuItem {
-  id: string
-  name: string
-  name_th: string
-  price: number
-  category: string
-  description?: string
-  image?: string
-  available: boolean
-  sweetness_options: boolean
-  toppings: string[]
-}
-
-export interface Shift {
-  id: string
-  user_id: string
-  opening_cash: number
-  closing_cash?: number
-  expected_cash?: number
-  difference?: number
-  start_time: string
-  end_time?: string
-  status: 'active' | 'closed'
-  created_at: string
-}
-
+// Legacy Payment interface (kept for backward compatibility)
 export interface Payment {
   id: string
   order_id: string
@@ -110,61 +45,27 @@ export interface Payment {
   amount: number
   created_at: string
 }
-
-export interface Member {
-  id: string
-  name: string
-  phone: string
-  line_id?: string
-  points: number
-  total_spent: number
-  created_at: string
-  last_visited?: string
-}
-// --- GLOBAL SETTINGS ---
-export interface GlobalSettings {
-  pos: {
-    vat_rate: number
-    service_charge: number
-    enable_qr: boolean
-    currency: string
-    shop_id: string
-  }
-  attendance: {
-    shop_lat: number
-    shop_lng: number
-    allowed_radius_meters: number
-    require_photo: boolean
-    auto_checkout_hour: number
-  }
-  notifications: {
-    line_enabled: boolean
-    line_token: string
-    notify_on_order: boolean
-    notify_on_attendance: boolean
-  }
-  receipt: {
-    header: string
-    footer: string
-    show_qr: boolean
-    promptpay_id: string
-  }
-}
+// ─── getGlobalSettings ─────────────────────────────────────────
+import type { GlobalSettings } from '@/types/supabase'
 
 /**
- * Server-side loader for global settings
+ * Server-side loader for global settings.
  * Usage: const settings = await getGlobalSettings()
  */
 export async function getGlobalSettings(): Promise<GlobalSettings> {
   const supabase = createServerSupabaseClient()
   const { data, error } = await supabase.from('settings').select('key, value')
-  
+
   // Default values if DB is empty or fails
   const defaults: GlobalSettings = {
-    pos: { vat_rate: 7, service_charge: 0, enable_qr: true, currency: '฿', shop_id: 'default' },
+    pos: {
+      vat_rate: 7, service_charge: 0, enable_qr: true,
+      currency: '฿', shop_id: 'default',
+      thb_per_point: 50, point_value_thb: 1,
+    },
     attendance: { shop_lat: 13.7563, shop_lng: 100.5018, allowed_radius_meters: 100, require_photo: true, auto_checkout_hour: 22 },
     notifications: { line_enabled: false, line_token: '', notify_on_order: true, notify_on_attendance: true },
-    receipt: { header: 'Queen Coffee', footer: 'Thank you!', show_qr: true, promptpay_id: '0812345678' }
+    receipt: { header: 'Queen Coffee', footer: 'Thank you!', show_qr: true, promptpay_id: '0812345678' },
   }
 
   if (error || !data) return defaults

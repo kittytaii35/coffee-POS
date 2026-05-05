@@ -85,6 +85,7 @@ export default function AttendancePage() {
   const videoRef  = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const isSubmitting = useRef(false) // ป้องกัน double-submit
 
   // Confirm checkout modal
   const [showConfirmOut, setShowConfirmOut] = useState(false)
@@ -217,6 +218,10 @@ export default function AttendancePage() {
 
   const submitAntiCheat = useCallback(async () => {
     if (!employee || !activeAction) return
+    // ── ป้องกัน double-submit (กด 2 ครั้งเร็ว)
+    if (isSubmitting.current) return
+    isSubmitting.current = true
+
     setLoading(true); setError(''); setSuccess('')
     try {
       const endpoint = activeAction === 'checkin' ? '/api/checkin' : '/api/checkout'
@@ -237,9 +242,14 @@ export default function AttendancePage() {
         setAntiCheatStep('idle'); setCapturedImage(null); setCapturedCoords(null); setGpsStatus('idle'); setCameraStatus('idle'); setActiveAction(null)
         fetchHistoryAndSummary(employee)
         setTimeout(() => setSuccess(''), 4000)
-      } else { setError(data.error || t.connectFail); setAntiCheatStep('idle') }
+      } else {
+        // 409 = เข้างานแล้ว — แสดง error แล้วปิด modal
+        setError(data.error || t.connectFail)
+        if (res.status === 409 && data.attendance) setAttendance(data.attendance)
+        setAntiCheatStep('idle')
+      }
     } catch { setError(t.connectFail); setAntiCheatStep('idle') }
-    finally { setLoading(false) }
+    finally { setLoading(false); isSubmitting.current = false }
   }, [employee, activeAction, capturedCoords, capturedImage, fetchHistoryAndSummary, t])
 
   const handleCheckOut = () => { setShowConfirmOut(false); startAntiCheat('checkout') }

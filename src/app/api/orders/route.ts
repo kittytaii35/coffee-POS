@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json()
-    const { id, status, paid, payment_type } = body
+    const { id, status, paid, payment_type, member_id, points_redeemed, discount_amount, points_earned } = body
     if (!id) return NextResponse.json({ error: 'Order ID is required' }, { status: 400 })
 
     let updatedOrder: any
@@ -141,6 +141,10 @@ export async function PATCH(req: NextRequest) {
       if (status) updateData.status = status
       if (paid !== undefined) updateData.paid = paid
       if (payment_type) updateData.payment_type = payment_type
+      if (member_id !== undefined) updateData.member_id = member_id || null
+      if (points_redeemed !== undefined) updateData.points_redeemed = points_redeemed
+      if (discount_amount !== undefined) updateData.discount_amount = discount_amount
+      if (points_earned !== undefined) updateData.points_earned = points_earned
 
       const { data, error } = await supabase
         .from('orders')

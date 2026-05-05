@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react'
 import {
-  Users, Clock, AlertTriangle, CheckCircle, Search, Download, Calendar, Activity, Info, MapPin
+  Users, Clock, AlertTriangle, CheckCircle, Search, Download, Calendar, Activity, Info, MapPin, LogOut
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useLanguage } from '@/context/LanguageContext'
@@ -93,6 +93,106 @@ function AttendanceDetailModal({ record, onClose, t, lang }: AttendanceDetailMod
   )
 }
 
+// ─── Force Checkout Modal ──────────────────────────────────────
+function ForceCheckoutModal({ record, onClose, onSuccess }: {
+  record: any
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const checkInTime = new Date(record.check_in)
+  // Default check-out = now, formatted for datetime-local input
+  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString().slice(0, 16)
+  const [checkOutTime, setCheckOutTime] = useState(nowLocal)
+  const [note, setNote] = useState('ลืมกดออกงาน')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const previewHours = (() => {
+    const diff = new Date(checkOutTime).getTime() - checkInTime.getTime()
+    return diff > 0 ? (diff / 3600000).toFixed(2) : '0.00'
+  })()
+
+  const handleSubmit = async () => {
+    setLoading(true); setError('')
+    try {
+      const res = await fetch('/api/attendance/force-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendance_id: record.id, check_out_time: checkOutTime, note }),
+      })
+      const data = await res.json()
+      if (data.success) { onSuccess(); onClose() }
+      else setError(data.error || 'เกิดข้อผิดพลาด')
+    } catch { setError('เชื่อมต่อไม่ได้') }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div className="animate-slide-up" style={{ background: 'white', padding: '28px', borderRadius: '24px', maxWidth: '400px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <LogOut size={22} color="#d97706" />
+          </div>
+          <div>
+            <h3 style={{ fontWeight: '900', fontSize: '16px', color: 'var(--coffee-dark)', margin: 0 }}>Force Checkout</h3>
+            <p className="thai-fix" style={{ fontSize: '13px', color: 'var(--coffee-light)', margin: 0 }}>{record.employees?.name}</p>
+          </div>
+        </div>
+
+        {/* Check-in info */}
+        <div style={{ background: '#f9fafb', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px' }}>
+          <span style={{ color: 'var(--coffee-light)' }}>เข้างาน: </span>
+          <strong>{new Date(record.check_in).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</strong>
+        </div>
+
+        {/* Check-out time input */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: 'var(--coffee-medium)', marginBottom: '6px' }}>เวลาออกงาน (แก้ไขได้)</label>
+          <input
+            type="datetime-local"
+            value={checkOutTime}
+            onChange={e => setCheckOutTime(e.target.value)}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e8d5c4', fontSize: '14px', outline: 'none' }}
+          />
+        </div>
+
+        {/* Hours preview */}
+        <div style={{ background: 'linear-gradient(135deg, var(--coffee-dark), var(--coffee-medium))', borderRadius: '12px', padding: '12px 16px', marginBottom: '12px', textAlign: 'center' }}>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', margin: 0 }}>ชั่วโมงทำงาน (คำนวณ)</p>
+          <p style={{ color: 'var(--gold)', fontSize: '26px', fontWeight: '900', margin: 0 }}>{previewHours} <span style={{ fontSize: '14px' }}>ชม.</span></p>
+        </div>
+
+        {/* Note */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: 'var(--coffee-medium)', marginBottom: '6px' }}>หมายเหตุ</label>
+          <input
+            type="text"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e8d5c4', fontSize: '14px', outline: 'none' }}
+          />
+        </div>
+
+        {error && <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px', fontWeight: '600' }}>{error}</p>}
+
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer', fontWeight: '700', color: '#6b7280' }}>ยกเลิก</button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: loading ? '#fcd34d' : '#d97706', color: 'white', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            {loading ? 'กำลังบันทึก...' : <><LogOut size={16} /> บันทึก Checkout</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ManagerAttendancePro() {
   const { lang } = useLanguage()
   const t = translations[lang].attendancePro
@@ -102,6 +202,7 @@ export default function ManagerAttendancePro() {
   const [filterEmp, setFilterEmp] = useState('ALL')
   const [filterStatus, setFilterStatus] = useState('ALL')
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null)
+  const [forceCheckoutRecord, setForceCheckoutRecord] = useState<any | null>(null)
 
   const fetchData = async () => {
     try {
@@ -297,9 +398,27 @@ export default function ManagerAttendancePro() {
                       </td>
                       <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
-                          <button style={{ background: 'none', border: 'none', color: 'var(--coffee-light)', cursor: 'pointer' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setSelectedRecord(r) }}
+                            style={{ background: 'none', border: 'none', color: 'var(--coffee-light)', cursor: 'pointer' }}
+                          >
                             <Search size={16} />
                           </button>
+                          {/* Force Checkout button — only for working rows */}
+                          {r.status === 'working' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setForceCheckoutRecord(r) }}
+                              title="Force Checkout"
+                              style={{
+                                background: '#fef3c7', border: '1px solid #fcd34d',
+                                borderRadius: '6px', padding: '4px 8px', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '4px',
+                                fontSize: '11px', fontWeight: '700', color: '#92400e',
+                              }}
+                            >
+                              <LogOut size={12} /> Force Out
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px', textAlign: 'center' }}>{r.image_url ? '✅' : '❌'}</td>
@@ -315,6 +434,13 @@ export default function ManagerAttendancePro() {
                 onClose={() => setSelectedRecord(null)} 
                 t={t} 
                 lang={lang}
+              />
+            )}
+            {forceCheckoutRecord && (
+              <ForceCheckoutModal
+                record={forceCheckoutRecord}
+                onClose={() => setForceCheckoutRecord(null)}
+                onSuccess={fetchData}
               />
             )}
             {filteredHistory.length > 15 && (
