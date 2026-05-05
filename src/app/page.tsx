@@ -21,7 +21,7 @@ export default function HomePage() {
   const [error, setError] = useState('')
 
   const handleNavClick = (e: React.MouseEvent, href: string) => {
-    if (PROTECTED_ROUTES.includes(href)) {
+    if (PROTECTED_ROUTES.includes(href) || href.startsWith('/dashboard')) {
       e.preventDefault()
       setTargetUrl(href)
       setPin('')
@@ -173,6 +173,42 @@ export default function HomePage() {
           title={t.home.dashboard}
           subtitle={t.home.dashboardSub}
           accent="#f472b6"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
+        />
+        <NavCard
+          href="/kds"
+          emoji="🧑‍🍳"
+          title={t.home.kds}
+          subtitle={t.home.kdsSub}
+          accent="#f97316"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
+        />
+        <NavCard
+          href="/dashboard/inventory"
+          emoji="📦"
+          title={t.home.inventory}
+          subtitle={t.home.inventorySub}
+          accent="#2dd4bf"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
+        />
+        <NavCard
+          href="/dashboard/expenses"
+          emoji="💸"
+          title={t.home.expenses}
+          subtitle={t.home.expensesSub}
+          accent="#ef4444"
+          openText={t.home.openButton}
+          onClick={handleNavClick}
+        />
+        <NavCard
+          href="/dashboard/promotions"
+          emoji="🏷️"
+          title={t.home.promotions}
+          subtitle={t.home.promotionsSub}
+          accent="#8b5cf6"
           openText={t.home.openButton}
           onClick={handleNavClick}
         />
