@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Clock, CheckCircle, ChevronRight, Volume2, VolumeX, RefreshCw, Wifi, WifiOff } from 'lucide-react'
+import { Clock, CheckCircle, ChevronRight, Volume2, VolumeX, RefreshCw, Wifi, WifiOff, Home, Globe } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { useLanguage } from '@/lib/translations'
 import type { KdsStatus } from '@/types/advanced'
 
 // ─── Types ────────────────────────────────────────────────────
@@ -175,6 +176,8 @@ export default function KdsPage() {
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const prevOrderIds = useRef<Set<string>>(new Set())
   const audioCtx = useRef<AudioContext | null>(null)
+  
+  const { lang, toggleLang } = useLanguage()
 
   // ── Sound alert ──────────────────────────────────────────────
   const playBeep = useCallback(() => {
@@ -305,12 +308,20 @@ export default function KdsPage() {
             <RefreshCw size={18} />
           </button>
 
-          {/* Back to Dashboard */}
-          <a href="/dashboard">
-            <button style={{ background: '#475569', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', color: 'white', fontSize: '13px', fontWeight: '700' }}>
-              ← Dashboard
+          {/* Back to Home */}
+          <a href="/" style={{ textDecoration: 'none' }}>
+            <button style={{ background: '#334155', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', color: 'white', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Home size={16} /> {lang === 'th' ? 'หน้าหลัก' : 'Home'}
             </button>
           </a>
+
+          {/* Lang toggle */}
+          <button 
+            onClick={toggleLang} 
+            className="thai-fix"
+            style={{ background: '#334155', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', color: 'white', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Globe size={16} /> {lang === 'th' ? 'English' : 'ไทย'}
+          </button>
         </div>
       </div>
 

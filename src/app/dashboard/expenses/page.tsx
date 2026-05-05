@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Trash2, Edit3, TrendingDown, TrendingUp, DollarSign, PieChart } from 'lucide-react'
+import { Plus, Trash2, Edit3, TrendingDown, TrendingUp, DollarSign, PieChart, ArrowLeft, Globe, Home } from 'lucide-react'
+import Link from 'next/link'
+import { useLanguage } from '@/lib/translations'
 import { PieChart as RePie, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 
 // ─── Types ────────────────────────────────────────────────────
@@ -66,8 +68,35 @@ function ExpenseFormModal({ onClose, onSave, categories, initial }: {
         {/* Category */}
         <div style={{ marginBottom: '14px' }}>
           <label style={labelStyle}>หมวดหมู่</label>
-          <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))} style={inputStyle}>
+          <select 
+            value={form.category_id} 
+            onChange={async (e) => {
+              if (e.target.value === 'new') {
+                const newName = prompt('ระบุชื่อหมวดหมู่ใหม่ (เช่น ค่าเดินทาง):')
+                if (!newName) return
+                setSaving(true)
+                try {
+                  const res = await fetch('/api/expense-categories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName, name_th: newName, icon: '🏷️', color: '#6b7280' })
+                  })
+                  const data = await res.json()
+                  if (data.category) {
+                    categories.push(data.category)
+                    setForm(f => ({ ...f, category_id: data.category.id }))
+                  }
+                } finally {
+                  setSaving(false)
+                }
+              } else {
+                setForm(f => ({ ...f, category_id: e.target.value }))
+              }
+            }} 
+            style={inputStyle}
+          >
             {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name_th}</option>)}
+            <option value="new" style={{ fontWeight: 'bold', color: '#16a34a' }}>+ เพิ่มหมวดหมู่ใหม่...</option>
           </select>
         </div>
 
@@ -130,7 +159,7 @@ export default function ExpensesPage() {
 
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [profit, setProfit] = useState<ProfitData | null>(null)
-  const [categories] = useState<ExpenseCategory[]>(DEFAULT_CATEGORIES)
+  const [categories, setCategories] = useState<ExpenseCategory[]>(DEFAULT_CATEGORIES)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState<Expense | undefined>()
@@ -138,16 +167,20 @@ export default function ExpensesPage() {
   const [endDate, setEndDate] = useState(today)
   const [profitPeriod, setProfitPeriod] = useState<'today' | 'week' | 'month'>('month')
 
+  const { lang, toggleLang } = useLanguage()
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [expRes, profRes] = await Promise.all([
+      const [expRes, profRes, catRes] = await Promise.all([
         fetch(`/api/expenses?start=${startDate}&end=${endDate}`),
         fetch(`/api/profit?period=${profitPeriod}`),
+        fetch(`/api/expense-categories`)
       ])
-      const [expData, profData] = await Promise.all([expRes.json(), profRes.json()])
+      const [expData, profData, catData] = await Promise.all([expRes.json(), profRes.json(), catRes.json()])
       if (expData.expenses) setExpenses(expData.expenses)
       if (!profData.error) setProfit(profData)
+      if (catData.categories && catData.categories.length > 0) setCategories(catData.categories)
     } finally { setLoading(false) }
   }, [startDate, endDate, profitPeriod])
 
@@ -171,10 +204,33 @@ export default function ExpensesPage() {
     <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* ── Net Profit Summary ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--coffee-dark)' }}>💰 รายจ่าย & กำไร</h1>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {(['today', 'week', 'month'] as const).map(p => (
-            <button key={p} onClick={() => setProfitPeriod(p)}
+        <h1 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--coffee-dark)', margin: 0 }}>💰 รายจ่าย & กำไร</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <button style={{
+              background: 'white', color: 'var(--coffee-dark)', border: '1px solid #e5e7eb',
+              padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+              <Home size={16} /> {lang === 'th' ? 'หน้าหลัก' : 'Home'}
+            </button>
+          </Link>
+          <button 
+            onClick={toggleLang} 
+            className="thai-fix"
+            style={{
+              background: 'white', color: 'var(--coffee-dark)', border: '1px solid #e5e7eb',
+              padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+            <Globe size={16} /> {lang === 'th' ? 'English' : 'ไทย'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px' }}>
+        {(['today', 'week', 'month'] as const).map(p => (
+          <button key={p} onClick={() => setProfitPeriod(p)}
               style={{ padding: '7px 14px', borderRadius: '8px', border: '1px solid #e5e7eb', fontWeight: '700', fontSize: '13px', cursor: 'pointer',
                 background: profitPeriod === p ? 'var(--coffee-dark)' : 'white', color: profitPeriod === p ? 'white' : 'var(--coffee-medium)' }}>
               {p === 'today' ? 'วันนี้' : p === 'week' ? '7 วัน' : 'เดือนนี้'}

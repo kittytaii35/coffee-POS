@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Edit3, Trash2, ToggleLeft, ToggleRight, Tag, Clock, Gift, Percent, Minus } from 'lucide-react'
+import { Plus, Edit3, Trash2, ToggleLeft, ToggleRight, Tag, Clock, Gift, Percent, Minus, ArrowLeft, Home, Globe } from 'lucide-react'
+import Link from 'next/link'
+import { useLanguage } from '@/lib/translations'
 import type { Promotion, PromotionType } from '@/types/advanced'
 
 const TYPE_META: Record<PromotionType, { label: string; labelTh: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -182,6 +184,8 @@ export default function PromotionsPage() {
   const [editItem, setEditItem] = useState<Promotion | undefined>()
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all')
 
+  const { lang, toggleLang } = useLanguage()
+
   const fetchPromos = useCallback(async () => {
     setLoading(true)
     try {
@@ -230,10 +234,31 @@ export default function PromotionsPage() {
           <h1 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--coffee-dark)', margin: 0 }}>🏷️ โปรโมชัน & ส่วนลด</h1>
           <p className="thai-fix" style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>กำลังใช้งาน {activeCount} โปรโมชัน</p>
         </div>
-        <button onClick={() => { setEditItem(undefined); setShowForm(true) }}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--coffee-dark)', color: 'white', padding: '10px 18px', borderRadius: '12px', border: 'none', fontWeight: '800', cursor: 'pointer' }}>
-          <Plus size={16} /> สร้างโปรโมชัน
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button onClick={() => { setEditItem(undefined); setShowForm(true) }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--coffee-dark)', color: 'white', padding: '8px 14px', borderRadius: '10px', border: 'none', fontWeight: '800', cursor: 'pointer', fontSize: '13px' }}>
+            <Plus size={16} /> สร้างโปรโมชัน
+          </button>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <button style={{
+              background: 'white', color: 'var(--coffee-dark)', border: '1px solid #e5e7eb',
+              padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+              <Home size={16} /> {lang === 'th' ? 'หน้าหลัก' : 'Home'}
+            </button>
+          </Link>
+          <button 
+            onClick={toggleLang} 
+            className="thai-fix"
+            style={{
+              background: 'white', color: 'var(--coffee-dark)', border: '1px solid #e5e7eb',
+              padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+            <Globe size={16} /> {lang === 'th' ? 'English' : 'ไทย'}
+          </button>
+        </div>
       </div>
 
       {/* Filter tabs */}
