@@ -394,8 +394,14 @@ export default function AttendancePage() {
               )}
               {selectedRecord.image_url && (
                 <div style={{ background: 'rgba(0,0,0,0.03)', padding: '14px', borderRadius: '12px' }}>
-                  <p style={{ fontSize: '13px', fontWeight: '700' }}>📸 {t.photo}</p>
-                  <img src={selectedRecord.image_url} alt="proof" style={{ width: '100%', borderRadius: '8px' }} />
+                  <p style={{ fontSize: '13px', fontWeight: '700' }}>📸 {t.photo} (เข้างาน)</p>
+                  <img src={selectedRecord.image_url} alt="check in proof" style={{ width: '100%', borderRadius: '8px' }} />
+                </div>
+              )}
+              {(selectedRecord as any).check_out_image && (
+                <div style={{ background: 'rgba(0,0,0,0.03)', padding: '14px', borderRadius: '12px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: '700' }}>📸 {t.photo} (ออกงาน)</p>
+                  <img src={(selectedRecord as any).check_out_image} alt="check out proof" style={{ width: '100%', borderRadius: '8px' }} />
                 </div>
               )}
             </div>
@@ -425,9 +431,9 @@ export default function AttendancePage() {
                   <div style={{ padding: '8px 20px', borderRadius: '24px', background: isWorking ? 'rgba(34,197,94,0.2)' : 'rgba(251,191,36,0.2)', display: 'inline-block', marginBottom: '16px' }}><span className="animate-success" style={{ display: 'inline-block', color: isWorking ? '#4ade80' : '#fbbf24', fontWeight: '800' }}>{isWorking ? t.working : t.notStarted}</span></div>
                   {isWorking && workTimer && <p style={{ color: 'var(--gold)', fontSize: '44px', fontWeight: '900' }}>{workTimer}</p>}
                 </div>
-                {!isWorking && !isDone && <button onClick={() => startAntiCheat('checkin')} style={{ width: '100%', padding: '20px', background: '#22c55e', borderRadius: '18px', color: 'white', fontSize: '20px', fontWeight: '800', border: 'none', cursor: 'pointer' }}><LogIn /> {t.checkIn}</button>}
-                {isWorking && <button onClick={() => setShowConfirmOut(true)} style={{ width: '100%', padding: '20px', background: '#ef4444', borderRadius: '18px', color: 'white', fontSize: '20px', fontWeight: '800', border: 'none', cursor: 'pointer' }}><LogOut /> {t.checkOut}</button>}
-                <button onClick={() => setScreen('pin')} style={{ width: '100%', marginTop: '12px', padding: '14px', background: 'rgba(255,255,255,0.05)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer' }}>{t.logout}</button>
+                {!isWorking && !isDone && <button onClick={() => startAntiCheat('checkin')} style={{ width: '100%', padding: '14px', background: '#22c55e', borderRadius: '12px', color: 'white', fontSize: '18px', fontWeight: '800', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><LogIn size={20} /> {t.checkIn}</button>}
+                {isWorking && <button onClick={() => setShowConfirmOut(true)} style={{ width: '100%', padding: '14px', background: '#ef4444', borderRadius: '12px', color: 'white', fontSize: '18px', fontWeight: '800', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><LogOut size={20} /> {t.checkOut}</button>}
+                <button onClick={() => setScreen('pin')} style={{ width: '100%', marginTop: '12px', padding: '14px', background: 'rgba(255,255,255,0.05)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><LogOut size={16} style={{ opacity: 0.5 }} /> {t.logout}</button>
               </div>
             )}
             {activeTab === 'history' && (

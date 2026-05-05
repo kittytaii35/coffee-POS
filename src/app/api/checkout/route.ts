@@ -5,7 +5,7 @@ import { sendLineNotify } from '@/lib/line'
 // POST /api/checkout
 export async function POST(req: NextRequest) {
   try {
-    const { employee_id } = await req.json()
+    const { employee_id, latitude, longitude, check_out_image } = await req.json()
     if (!employee_id) return NextResponse.json({ error: 'Employee ID required' }, { status: 400 })
 
     if (isSupabaseConfigured) {
@@ -37,6 +37,9 @@ export async function POST(req: NextRequest) {
           check_out: checkOut.toISOString(),
           work_hours: parseFloat(workHours.toFixed(2)),
           status: 'done',
+          check_out_latitude: latitude,
+          check_out_longitude: longitude,
+          check_out_image: check_out_image
         })
         .eq('id', active.id)
         .select('*, employees(name, role)')
