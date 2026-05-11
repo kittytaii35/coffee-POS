@@ -116,10 +116,17 @@ function ForceCheckoutModal({ record, onClose, onSuccess }: {
   const handleSubmit = async () => {
     setLoading(true); setError('')
     try {
+      // Fix Timezone: Convert local datetime string to ISO UTC
+      const checkOutAtISO = new Date(checkOutTime).toISOString()
+
       const res = await fetch('/api/attendance/force-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ attendance_id: record.id, check_out_time: checkOutTime, note }),
+        body: JSON.stringify({ 
+          attendance_id: record.id, 
+          check_out_time: checkOutAtISO, 
+          note 
+        }),
       })
       const data = await res.json()
       if (data.success) { onSuccess(); onClose() }
@@ -193,6 +200,83 @@ function ForceCheckoutModal({ record, onClose, onSuccess }: {
   )
 }
 
+function AttendanceEditModal({ record, onClose, onSuccess, t }: {
+  record: any
+  onClose: () => void
+  onSuccess: () => void
+  t: any
+}) {
+  // Helper to convert DB ISO to local datetime-local format (YYYY-MM-DDTHH:mm)
+  const toLocalISO = (dateStr: string) => {
+    if (!dateStr) return ''
+    const d = new Date(dateStr)
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  }
+
+  const [checkIn, setCheckIn] = useState(toLocalISO(record.check_in))
+  const [checkOut, setCheckOut] = useState(toLocalISO(record.check_out))
+  const [status, setStatus] = useState(record.status)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleUpdate = async () => {
+    setLoading(true); setError('')
+    try {
+      const payload = {
+        id: record.id,
+        check_in: new Date(checkIn).toISOString(),
+        check_out: checkOut ? new Date(checkOut).toISOString() : null,
+        status: status
+      }
+      const res = await fetch('/api/attendance/update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (data.success) { onSuccess(); onClose() }
+      else setError(data.error || 'เกิดข้อผิดพลาด')
+    } catch { setError('เชื่อมต่อไม่ได้') }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div className="animate-slide-up" style={{ background: 'white', padding: '28px', borderRadius: '24px', maxWidth: '400px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <h3 style={{ fontWeight: '900', fontSize: '18px', color: 'var(--coffee-dark)', marginBottom: '20px' }}>แก้ไขข้อมูลการลงเวลา</h3>
+        
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: 'var(--coffee-medium)', marginBottom: '6px' }}>{t.colCheckIn}</label>
+          <input type="datetime-local" value={checkIn} onChange={e => setCheckIn(e.target.value)} style={inputStyle} />
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: 'var(--coffee-medium)', marginBottom: '6px' }}>{t.colCheckOut}</label>
+          <input type="datetime-local" value={checkOut} onChange={e => setCheckOut(e.target.value)} style={inputStyle} />
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: 'var(--coffee-medium)', marginBottom: '6px' }}>{t.colStatus}</label>
+          <select value={status} onChange={e => setStatus(e.target.value)} style={inputStyle}>
+            <option value="working">WORKING</option>
+            <option value="done">DONE</option>
+          </select>
+        </div>
+
+        {error && <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px' }}>{error}</p>}
+
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #e5e7eb', background: 'white', fontWeight: '700' }}>ยกเลิก</button>
+          <button onClick={handleUpdate} disabled={loading} style={{ flex: 2, padding: '12px', borderRadius: '12px', background: 'var(--coffee-dark)', color: 'white', fontWeight: '800' }}>
+            {loading ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e8d5c4', fontSize: '14px', outline: 'none' }
+
 export default function ManagerAttendancePro() {
   const { lang } = useLanguage()
   const t = translations[lang].attendancePro
@@ -203,6 +287,7 @@ export default function ManagerAttendancePro() {
   const [filterStatus, setFilterStatus] = useState('ALL')
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null)
   const [forceCheckoutRecord, setForceCheckoutRecord] = useState<any | null>(null)
+  const [editRecord, setEditRecord] = useState<any | null>(null)
 
   // Date range — default = เดือนนี้
   const today = new Date().toISOString().split('T')[0]
@@ -438,6 +523,13 @@ export default function ManagerAttendancePro() {
                       <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
                           <button
+                            onClick={(e) => { e.stopPropagation(); setEditRecord(r) }}
+                            title="Edit Record"
+                            style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer' }}
+                          >
+                            <Calendar size={16} />
+                          </button>
+                          <button
                             onClick={(e) => { e.stopPropagation(); setSelectedRecord(r) }}
                             style={{ background: 'none', border: 'none', color: 'var(--coffee-light)', cursor: 'pointer' }}
                           >
@@ -480,6 +572,14 @@ export default function ManagerAttendancePro() {
                 record={forceCheckoutRecord}
                 onClose={() => setForceCheckoutRecord(null)}
                 onSuccess={fetchData}
+              />
+            )}
+            {editRecord && (
+              <AttendanceEditModal
+                record={editRecord}
+                onClose={() => setEditRecord(null)}
+                onSuccess={fetchData}
+                t={t}
               />
             )}
             {filteredHistory.length > 15 && (
